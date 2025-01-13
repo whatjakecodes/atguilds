@@ -3,7 +3,7 @@ import { onCLS, onFCP, onFID, onLCP, onTTFB, type Metric } from 'web-vitals';
 const vitalsUrl = 'https://vitals.vercel-analytics.com/v1/vitals';
 
 function getConnectionSpeed() {
-	// @ts-ignore
+	// @ts-expect-error ignored-by-vercel-template
 	return navigator?.connection?.effectiveType ?? '';
 }
 

@@ -1,5 +1,5 @@
 {
-	"name": "sveltekit-2",
+	"name": "atguilds",
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
@@ -11,7 +11,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest",
-		"test": "npm run test:unit -- --run && npm run test:e2e",
+		"test": "pnpm run test:unit -- --run && pnpm run test:e2e",
 		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
@@ -35,5 +35,8 @@
 		"vite": "^6.0.0",
 		"vitest": "^2.0.4",
 		"web-vitals": "^3.5.0"
+	},
+	"dependencies": {
+		"@vercel/analytics": "^1.4.1"
 	}
 }

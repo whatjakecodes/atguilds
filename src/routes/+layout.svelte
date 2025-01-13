@@ -1,21 +1,8 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { page } from '$app/stores';
-	import { webVitals } from '$lib/vitals';
 	import Header from './Header.svelte';
 	import '../app.css';
 
-	let { data, children } = $props();
-
-	$effect(() => {
-		if (data?.analyticsId) {
-			webVitals({
-				path: $page.url.pathname,
-				params: $page.params,
-				analyticsId: data.analyticsId
-			});
-		}
-	});
+	let { children } = $props();
 </script>
 
 <div class="app">
@@ -26,9 +13,6 @@
 	</main>
 
 	<footer>
-		<p>
-			visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to learn about SvelteKit
-		</p>
 	</footer>
 </div>
 
