@@ -1,5 +1,5 @@
-import { env as publicEnv } from '$env/dynamic/public';
-import { env as privateEnv } from '$env/dynamic/private';
+import { PUBLIC_URL } from '$env/static/public';
+import { PORT } from '$env/static/private';
 import { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { SessionStore, StateStore } from './storage'
 import type { Database } from '$lib/server/db';
@@ -7,12 +7,14 @@ import type { Database } from '$lib/server/db';
 export const createClient = async (db: Database) => {
 	const enc = encodeURIComponent;
 
+	const publicUrl = PUBLIC_URL;
+	const url = publicUrl || `http://127.0.0.1:${PORT}`;
+
 	console.log({
-		PUBLIC_URL: publicEnv.PUBLIC_URL
+		publicUrl,
+		url
 	});
 
-	const publicUrl = publicEnv.PUBLIC_URL;
-	const url = publicUrl || `http://127.0.0.1:${privateEnv.PORT}`;
 	return new NodeOAuthClient({
 		clientMetadata: {
 			client_name: 'ATGuilds SvelteKit App',
