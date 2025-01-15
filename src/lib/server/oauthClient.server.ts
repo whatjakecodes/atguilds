@@ -1,4 +1,4 @@
-import { PUBLIC_VITE_VERCEL_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import { PORT } from '$env/static/private';
 import { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { SessionStore, StateStore } from './storage';
@@ -7,11 +7,11 @@ import type { Database } from '$lib/server/db';
 export const createClient = async (db: Database) => {
 	const enc = encodeURIComponent;
 
-	const publicUrl = PUBLIC_VITE_VERCEL_URL;
+	const publicUrl = env.PUBLIC_VITE_VERCEL_URL;
 	const url = publicUrl || `http://127.0.0.1:${PORT}`;
 
 	console.log({
-		PUBLIC_VITE_VERCEL_URL,
+		PUBLIC_VITE_VERCEL_URL: env.PUBLIC_VITE_VERCEL_URL,
 		url
 	});
 
