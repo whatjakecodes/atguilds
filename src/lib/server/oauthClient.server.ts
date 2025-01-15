@@ -1,17 +1,17 @@
-import { VITE_VERCEL_URL } from '$env/static/private';
+import { PUBLIC_VITE_VERCEL_URL } from '$env/static/public';
+import { PORT } from '$env/static/private';
 import { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { SessionStore, StateStore } from './storage';
 import type { Database } from '$lib/server/db';
-import { getLocalPort } from '$lib/server/getLocalPort';
 
 export const createClient = async (db: Database) => {
 	const enc = encodeURIComponent;
 
-	const publicUrl = VITE_VERCEL_URL;
-	const url = publicUrl || `http://127.0.0.1:${getLocalPort()}`;
+	const publicUrl = PUBLIC_VITE_VERCEL_URL;
+	const url = publicUrl || `http://127.0.0.1:${PORT}`;
 
 	console.log({
-		VITE_VERCEL_URL,
+		PUBLIC_VITE_VERCEL_URL,
 		url
 	});
 
