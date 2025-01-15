@@ -1,8 +1,8 @@
 import { createClient } from '$lib/server/oauthClient.server';
 import { createDb, migrateToLatest } from '$lib/server/db';
-import { DB_PATH } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
-const db = createDb(DB_PATH);
+const db = createDb(env.DB_PATH);
 await migrateToLatest(db);
 const client = await createClient(db);
 
