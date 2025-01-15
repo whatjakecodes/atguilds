@@ -19,11 +19,7 @@ async function getAgent(locals: App.Locals, cookies: Cookies) {
 }
 
 export async function load({ locals, cookies }) {
-	console.log('homepage load');
 	const agent = await getAgent(locals, cookies);
-	console.log({ agent });
-	console.log(`did: ${agent?.assertDid}`);
-
 	return {
 		userName: agent?.assertDid
 	};

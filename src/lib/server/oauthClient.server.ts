@@ -6,15 +6,8 @@ import type { Database } from '$lib/server/db';
 
 export const createClient = async (db: Database) => {
 	const enc = encodeURIComponent;
-
 	const publicUrl = env.PUBLIC_VITE_VERCEL_URL;
 	const url = publicUrl || `http://127.0.0.1:${PORT}`;
-
-	console.log({
-		PUBLIC_VITE_VERCEL_URL: env.PUBLIC_VITE_VERCEL_URL,
-		url
-	});
-
 	return new NodeOAuthClient({
 		clientMetadata: {
 			client_name: 'ATGuilds SvelteKit App',

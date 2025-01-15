@@ -5,10 +5,7 @@ import { redirect, type RequestHandler } from '@sveltejs/kit';
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	const params = url.searchParams;
 	try {
-		console.log(`got params: ${params}`);
-		const { session, state } = await locals.client.callback(params);
-		console.log(`got session: ${session}`);
-		console.log(`got state: ${state}`);
+		const { session } = await locals.client.callback(params);
 
 		// todo: encrypt this or secure it otherwise
 		cookies.set('sid', session.did, {

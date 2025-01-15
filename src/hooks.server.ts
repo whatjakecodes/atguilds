@@ -11,7 +11,6 @@ export async function handle({ event, resolve }) {
 		// skip oauth client setup during build-time pre-rendering
 		const client = await createClient(db!);
 		const sessionId = event.cookies.get('sid') || null;
-		console.log(`found sessionID: ${sessionId} (${event.request.method} ${event.url})`);
 		event.locals.session = sessionId ? { did: sessionId } : undefined;
 		event.locals.client = client;
 	}
