@@ -12,9 +12,8 @@
 		ATGuilds
 	</h1>
 
-	{#if data.userName}
-		<p>Logged in:</p>
-		<p>{data.userName}</p>
+	{#if data.profile}
+		<p>Logged in as: <span>{data.profile.displayName}</span></p>
 	{/if}
 </section>
 

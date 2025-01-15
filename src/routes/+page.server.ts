@@ -20,7 +20,18 @@ async function getAgent(locals: App.Locals, cookies: Cookies) {
 
 export async function load({ locals, cookies }) {
 	const agent = await getAgent(locals, cookies);
+
+	if (!agent) {
+		return {
+			profile: null
+		};
+	}
+
+	const response = await agent.getProfile({
+		actor: agent.assertDid
+	});
+
 	return {
-		userName: agent?.assertDid
+		profile: response.data,
 	};
 }
