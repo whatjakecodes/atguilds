@@ -1,11 +1,12 @@
-import SqliteDb from 'better-sqlite3'
+import SqliteDb from 'better-sqlite3';
 import { Kysely, Migrator, SqliteDialect, type MigrationProvider, type Migration } from 'kysely';
 
 // Types
-
 export type DatabaseSchema = {
 	auth_session: AuthSession;
 	auth_state: AuthState;
+	guild: Guild;
+	guild_member: GuildMember;
 };
 
 export type AuthSession = {
@@ -22,8 +23,26 @@ type AuthStateJson = string;
 
 type AuthSessionJson = string;
 
-// Migrations
+export type Guild = {
+	uri: string
+	cid: string
+	creatorDid: string
+	name: string
+	leaderDid: string
+	createdAt: string
+	indexedAt: string
+}
 
+export type GuildMember = {
+	uri: string
+	memberDid: string
+	guildUri: string
+	guildCid: string
+	createdAt: string
+	indexedAt: string
+}
+
+// Migrations
 const migrations: Record<string, Migration> = {};
 
 const migrationProvider: MigrationProvider = {
@@ -51,8 +70,93 @@ migrations['001'] = {
 	}
 };
 
-// APIs
+migrations['002'] = {
+	async up(db: Kysely<unknown>): Promise<void> {
+		// Create Guild table
+		await db.schema
+			.createTable('guild')
+			.addColumn('cid', 'varchar', (col) =>
+				col.primaryKey().notNull()
+			)
+			.addColumn('uri', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('creatorDid', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('name', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('leaderDid', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('createdAt', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('indexedAt', 'varchar', (col) =>
+				col.notNull()
+			)
+			.execute();
 
+		// Create indexes for Guild table
+		await db.schema
+			.createIndex('guild_creator_did_idx')
+			.on('guild')
+			.column('creatorDid')
+			.execute();
+
+		await db.schema
+			.createIndex('guild_leader_did_idx')
+			.on('guild')
+			.column('leaderDid')
+			.execute();
+
+		// Create GuildMember table
+		await db.schema
+			.createTable('guild_member')
+			.addColumn('uri', 'varchar', (col) =>
+				col.primaryKey().notNull()
+			)
+			.addColumn('memberDid', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('guildUri', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('guildCid', 'varchar', (col) =>
+				col.notNull()
+					.references('guild.cid')
+					.onDelete('cascade')
+			)
+			.addColumn('createdAt', 'varchar', (col) =>
+				col.notNull()
+			)
+			.addColumn('indexedAt', 'varchar', (col) =>
+				col.notNull()
+			)
+			.execute();
+
+		// Create indexes for GuildMember table
+		await db.schema
+			.createIndex('guild_member_member_did_idx')
+			.on('guild_member')
+			.column('memberDid')
+			.execute();
+
+		await db.schema
+			.createIndex('guild_member_guild_cid_idx')
+			.on('guild_member')
+			.column('guildCid')
+			.execute();
+	},
+
+	async down(db: Kysely<unknown>): Promise<void> {
+		await db.schema.dropTable('guild_member').execute();
+		await db.schema.dropTable('guild').execute();
+	}
+};
+
+// APIs
 export const createDb = (location: string): Database => {
 	console.log(`createDB with location: ${location}`);
 	return new Kysely<DatabaseSchema>({
@@ -70,4 +174,4 @@ export const migrateToLatest = async (db: Database) => {
 	console.log(`db.migrateToLatest complete`);
 };
 
-export type Database = Kysely<DatabaseSchema>;
+export type Database = Kysely<DatabaseSchema>

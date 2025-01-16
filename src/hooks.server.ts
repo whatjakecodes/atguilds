@@ -13,6 +13,7 @@ export async function handle({ event, resolve }) {
 		const sessionId = event.cookies.get('sid') || null;
 		event.locals.session = sessionId ? { did: sessionId } : undefined;
 		event.locals.client = client;
+		event.locals.db = db;
 	}
 
 	return await resolve(event);

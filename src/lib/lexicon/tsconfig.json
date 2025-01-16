@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "verbatimModuleSyntax": false,
+    "noUnusedLocals": false,
+    "composite": true
+  }
+}

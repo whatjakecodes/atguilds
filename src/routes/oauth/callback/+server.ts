@@ -1,6 +1,6 @@
-// src/routes/oauth/callback/+server.ts
+import guildService from '$lib/server/guildService';
 import { redirect, type RequestHandler } from '@sveltejs/kit';
-// import { COOKIE_SECRET } from '$env/static/private';
+import { getAgent } from '$lib/server/agent';
 
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	const params = url.searchParams;
@@ -14,6 +14,9 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 			secure: true,
 			sameSite: 'lax'
 		});
+
+		const agent = await getAgent(cookies, session, locals.client);
+		await guildService.syncLocals(agent, locals.db)
 	} catch (err) {
 		console.error({ err }, 'oauth callback failed');
 		throw redirect(303, '/?error');

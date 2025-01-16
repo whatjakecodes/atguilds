@@ -30,3 +30,7 @@ You can preview the production build with `pnpm run preview`.
 Once deployed on Vercel, you can benefit from [Speed Insights](https://vercel.com/docs/concepts/speed-insights) simply by navigating to Vercel's dashboard, clicking on the 'Speed Insights' tab, and enabling the product.
 
 You will get data once your application will be re-deployed and will receive visitors.
+
+## Lexicon Code Gen
+
+`./node_modules/.bin/lex gen-server ./src/libs/lexicon ./lexicons/*`

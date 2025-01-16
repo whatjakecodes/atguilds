@@ -30,5 +30,11 @@ export default ts.config(
 	    parser: ts.parser
 	  }
 	}
-  }
+  },
+	{
+		files: ["src/lib/lexicon/**/*.ts"],
+		rules: {
+			'@typescript-eslint/no-unused-vars': 'off'
+		}
+	}
 );

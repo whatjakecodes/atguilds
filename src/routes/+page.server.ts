@@ -1,25 +1,8 @@
-import { Agent } from '@atproto/api';
-import type { Cookies } from '@sveltejs/kit';
-
-async function getAgent(locals: App.Locals, cookies: Cookies) {
-	if (!locals.session) return null;
-	try {
-		const oauthSession = await locals.client.restore(locals.session.did);
-		return oauthSession ? new Agent(oauthSession) : null;
-	} catch (err) {
-		console.warn({ err }, 'oauth restore failed');
-		cookies.delete('sid', {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax'
-		});
-		return null;
-	}
-}
+import guildService from '$lib/server/guildService';
+import { getAgent } from '$lib/server/agent';
 
 export async function load({ locals, cookies }) {
-	const agent = await getAgent(locals, cookies);
+	const agent = await getAgent(cookies, locals.session, locals.client);
 
 	if (!agent) {
 		return {
@@ -31,7 +14,39 @@ export async function load({ locals, cookies }) {
 		actor: agent.assertDid
 	});
 
+	const guilds = await guildService.getUserGuilds(agent.assertDid, locals.db);
+
 	return {
 		profile: response.data,
+		guilds
 	};
 }
+
+export const actions = {
+	default: async ({ request, locals, cookies }) => {
+		const agent = await getAgent(cookies, locals.session, locals.client);
+		if (!agent) {
+			return {
+				success: false,
+				error: 'You must be logged in to create a new guild'
+			};
+		}
+
+		const data = await request.formData();
+		const guildName = data.get('guildName') as string;
+
+		try {
+			const created = await guildService.create(agent, locals.db, guildName);
+			return {
+				success: true,
+				guild: created
+			};
+		} catch (err) {
+			console.error({ err }, 'created guild failed');
+			return {
+				success: false,
+				error: (err as Error).message
+			};
+		}
+	}
+};
