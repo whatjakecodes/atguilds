@@ -1,14 +1,14 @@
 import guildService from '$lib/server/guildService';
 import { getAgent } from '$lib/server/agent';
-import {PUBLIC_VERCEL_URL} from '$env/static/public'
-import {VERCEL_URL} from '$env/static/private'
+// import {PUBLIC_VERCEL_URL} from '$env/static/public'
+// import {VERCEL_URL} from '$env/static/private'
 import {env as publicEnv} from '$env/dynamic/public'
 import {env as privateEnv} from '$env/dynamic/private'
 
 export async function load({ locals, cookies }) {
 	console.log({
-		PUBLIC_VERCEL_URL,
-		VERCEL_URL,
+		// PUBLIC_VERCEL_URL,
+		// VERCEL_URL,
 		dynamicPUBLIC_VERCEL_URL: publicEnv.PUBLIC_VERCEL_URL,
 		dynamicVERCEL_URL: privateEnv.VERCEL_URL,
 	});
