@@ -1,5 +1,6 @@
 import guildService from '$lib/server/guildService';
 import { getAgent } from '$lib/server/agent';
+import { error } from '@sveltejs/kit';
 
 export async function load({ locals, cookies }) {
 	const agent = await getAgent(cookies, locals.session, locals.client);
@@ -26,10 +27,7 @@ export const actions = {
 	default: async ({ request, locals, cookies }) => {
 		const agent = await getAgent(cookies, locals.session, locals.client);
 		if (!agent) {
-			return {
-				success: false,
-				error: 'You must be logged in to create a new guild'
-			};
+			error(401, 'You must be logged in to create a new guild')
 		}
 
 		const data = await request.formData();
@@ -42,7 +40,7 @@ export const actions = {
 				guild: created
 			};
 		} catch (err) {
-			console.error({ err }, 'created guild failed');
+			console.error({ err }, 'create guild failed');
 			return {
 				success: false,
 				error: (err as Error).message

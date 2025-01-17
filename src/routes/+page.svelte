@@ -16,10 +16,10 @@
 		<p>Logged in as: <span>{data.profile.displayName}</span></p>
 
 		{#if data.guilds}
-			<p>In guilds: </p>
+			<span>In guilds: </span>
 			<ul>
 				{#each data.guilds as g}
-					<li>{g.name} | leader {g.leaderDid} | Created {g.createdAt}</li>
+					<li><a href="/guild/{g.uri.replace('at://', 'at/')}">{g.name}</a></li>
 				{/each}
 			</ul>
 		{/if}

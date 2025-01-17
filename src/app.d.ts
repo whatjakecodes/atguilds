@@ -11,6 +11,7 @@ declare global {
 			client: NodeOAuthClient;
 			session?: Session;
 			db: Database;
+			resolver: BidirectionalResolver
 		}
 		// interface PageData {}
 		// interface PageState {}

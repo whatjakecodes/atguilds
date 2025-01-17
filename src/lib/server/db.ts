@@ -7,6 +7,7 @@ export type DatabaseSchema = {
 	auth_state: AuthState;
 	guild: Guild;
 	guild_member: GuildMember;
+	guild_invite: GuildInvite;
 };
 
 export type AuthSession = {
@@ -24,23 +25,28 @@ type AuthStateJson = string;
 type AuthSessionJson = string;
 
 export type Guild = {
-	uri: string
-	cid: string
-	creatorDid: string
-	name: string
-	leaderDid: string
-	createdAt: string
-	indexedAt: string
-}
+	uri: string;
+	cid: string;
+	creatorDid: string;
+	name: string;
+	leaderDid: string;
+	createdAt: string;
+	indexedAt: string;
+};
+
+export type GuildInvite = {
+	guildUri: string;
+	invitee: string;
+	createdAt: string;
+};
 
 export type GuildMember = {
-	uri: string
-	memberDid: string
-	guildUri: string
-	guildCid: string
-	createdAt: string
-	indexedAt: string
-}
+	uri: string;
+	memberDid: string;
+	guildUri: string;
+	createdAt: string;
+	indexedAt: string;
+};
 
 // Migrations
 const migrations: Record<string, Migration> = {};
@@ -75,65 +81,29 @@ migrations['002'] = {
 		// Create Guild table
 		await db.schema
 			.createTable('guild')
-			.addColumn('cid', 'varchar', (col) =>
-				col.primaryKey().notNull()
-			)
-			.addColumn('uri', 'varchar', (col) =>
-				col.notNull()
-			)
-			.addColumn('creatorDid', 'varchar', (col) =>
-				col.notNull()
-			)
-			.addColumn('name', 'varchar', (col) =>
-				col.notNull()
-			)
-			.addColumn('leaderDid', 'varchar', (col) =>
-				col.notNull()
-			)
-			.addColumn('createdAt', 'varchar', (col) =>
-				col.notNull()
-			)
-			.addColumn('indexedAt', 'varchar', (col) =>
-				col.notNull()
-			)
+			.addColumn('uri', 'varchar', (col) => col.primaryKey().notNull())
+			.addColumn('cid', 'varchar', (col) => col.notNull())
+			.addColumn('creatorDid', 'varchar', (col) => col.notNull())
+			.addColumn('name', 'varchar', (col) => col.notNull())
+			.addColumn('leaderDid', 'varchar', (col) => col.notNull())
+			.addColumn('createdAt', 'varchar', (col) => col.notNull())
+			.addColumn('indexedAt', 'varchar', (col) => col.notNull())
 			.execute();
 
 		// Create indexes for Guild table
-		await db.schema
-			.createIndex('guild_creator_did_idx')
-			.on('guild')
-			.column('creatorDid')
-			.execute();
-
-		await db.schema
-			.createIndex('guild_leader_did_idx')
-			.on('guild')
-			.column('leaderDid')
-			.execute();
+		await db.schema.createIndex('guild_creator_did_idx').on('guild').column('creatorDid').execute();
+		await db.schema.createIndex('guild_leader_did_idx').on('guild').column('leaderDid').execute();
 
 		// Create GuildMember table
 		await db.schema
 			.createTable('guild_member')
-			.addColumn('uri', 'varchar', (col) =>
-				col.primaryKey().notNull()
-			)
-			.addColumn('memberDid', 'varchar', (col) =>
-				col.notNull()
-			)
+			.addColumn('uri', 'varchar', (col) => col.primaryKey().notNull())
+			.addColumn('memberDid', 'varchar', (col) => col.notNull())
 			.addColumn('guildUri', 'varchar', (col) =>
-				col.notNull()
+				col.notNull().references('guild.uri').onDelete('cascade')
 			)
-			.addColumn('guildCid', 'varchar', (col) =>
-				col.notNull()
-					.references('guild.cid')
-					.onDelete('cascade')
-			)
-			.addColumn('createdAt', 'varchar', (col) =>
-				col.notNull()
-			)
-			.addColumn('indexedAt', 'varchar', (col) =>
-				col.notNull()
-			)
+			.addColumn('createdAt', 'varchar', (col) => col.notNull())
+			.addColumn('indexedAt', 'varchar', (col) => col.notNull())
 			.execute();
 
 		// Create indexes for GuildMember table
@@ -144,15 +114,30 @@ migrations['002'] = {
 			.execute();
 
 		await db.schema
-			.createIndex('guild_member_guild_cid_idx')
+			.createIndex('guild_member_guild_uri_idx')
 			.on('guild_member')
-			.column('guildCid')
+			.column('guildUri')
 			.execute();
 	},
 
 	async down(db: Kysely<unknown>): Promise<void> {
 		await db.schema.dropTable('guild_member').execute();
 		await db.schema.dropTable('guild').execute();
+	}
+};
+
+migrations['003'] = {
+	async up(db: Kysely<unknown>) {
+		await db.schema
+			.createTable('guild_invite')
+			.addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement())
+			.addColumn('guildUri', 'varchar', (col) => col.notNull())
+			.addColumn('invitee', 'varchar', (col) => col.notNull())
+			.addColumn('createdAt', 'varchar', (col) => col.notNull())
+			.execute();
+	},
+	async down(db: Kysely<unknown>) {
+		await db.schema.dropTable('guild_invite').execute();
 	}
 };
 
@@ -174,4 +159,4 @@ export const migrateToLatest = async (db: Database) => {
 	console.log(`db.migrateToLatest complete`);
 };
 
-export type Database = Kysely<DatabaseSchema>
+export type Database = Kysely<DatabaseSchema>;

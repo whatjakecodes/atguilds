@@ -9,7 +9,7 @@ import { CID } from 'multiformats/cid'
 export interface Record {
   /** The name of the guild */
   name: string
-  /** DID for each member in the guild */
+  /** DID for the leader of the guild */
   leader: string
   /** Array of member DIDs */
   members: string[]
@@ -21,11 +21,11 @@ export function isRecord(v: unknown): v is Record {
   return (
     isObj(v) &&
     hasProp(v, '$type') &&
-    (v.$type === 'dev.jakestout.atguilds.testGuild#main' ||
-      v.$type === 'dev.jakestout.atguilds.testGuild')
+    (v.$type === 'dev.jakestout.atguilds.guild#main' ||
+      v.$type === 'dev.jakestout.atguilds.guild')
   )
 }
 
 export function validateRecord(v: unknown): ValidationResult {
-  return lexicons.validate('dev.jakestout.atguilds.testGuild#main', v)
+  return lexicons.validate('dev.jakestout.atguilds.guild#main', v)
 }

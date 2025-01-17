@@ -1,0 +1,28 @@
+{
+  "lexicon": 1,
+  "id": "dev.jakestout.atguilds.guildMemberClaim",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A claim to guild membership. Guild must also include member in members array to fulfill the claim.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "guildUri",
+          "createdAt"
+        ],
+        "properties": {
+          "guildUri": {
+            "type": "string",
+            "format": "at-uri"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

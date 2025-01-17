@@ -33,4 +33,4 @@ You will get data once your application will be re-deployed and will receive vis
 
 ## Lexicon Code Gen
 
-`./node_modules/.bin/lex gen-server ./src/libs/lexicon ./lexicons/*`
+`./node_modules/.bin/lex gen-server ./src/lib/lexicon ./lexicons/*`
