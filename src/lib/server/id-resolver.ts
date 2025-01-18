@@ -26,6 +26,14 @@ export function createBidirectionalResolver(resolver: IdResolver) {
 			return did
 		},
 
+		// async resolveHandleToDid(handle: string): Promise<string> {
+		// 	const did = await resolver.handle.resolve(handle)
+		// 	const resolvedHandle = await resolver.did.resolve(did)
+		// 	if (resolvedHandle === did) {
+		// 		return didDoc.handle
+		// 	}
+		// 	return did
+		// },
 		async resolveDidsToHandles(
 			dids: string[]
 		): Promise<Record<string, string>> {

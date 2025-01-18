@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+
 	const { data } = $props();
 </script>
 
@@ -24,7 +26,28 @@
 			</ul>
 		{/if}
 
-		<form method="POST" class="space-y-4">
+		{#if data.invites}
+			<span>Invites: </span>
+			<ul>
+				{#each data.invites as i}
+					<li>
+
+						<form
+							method="POST"
+							action="?/acceptInvite"
+						>
+							<input type="hidden" name="inviteId" value={i.inviteId} />
+							<span>{i.guildName}</span>
+							<button type="submit" class="link-button">
+								Accept
+							</button>
+						</form>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		<form method="POST" action="?/createGuild" class="space-y-4">
 			<div>
 				<label for="guildName" class="block text-sm font-medium mb-1">
 					Guild Name

@@ -18,7 +18,9 @@ export async function load({ params, locals, cookies }) {
 
 	const guildMembers = await guildService.getGuildMembers(atIdentity, rkey, locals.db);
 	const invites = await guildService.getGuildInvites(guild.uri, locals.db);
-	const didHandleMap = await locals.resolver.resolveDidsToHandles(guildMembers.map(m => m.memberDid));
+	const didHandleMap = await locals.resolver.resolveDidsToHandles(
+		guildMembers.map((m) => m.memberDid)
+	);
 	return {
 		guild,
 		guildMembers,
@@ -53,11 +55,23 @@ export const actions = {
 		}
 
 		const data = await request.formData();
-		const handle = data.get('memberHandle') as string;
+		const inviteeHandle = data.get('memberHandle') as string;
+		// const inviteeDid = (await locals.resolver.resolveDidToHandle(inviteeHandle)) as string;
+		const didResponse = await agent.com.atproto.identity.resolveHandle({ handle: inviteeHandle });
+		const inviteeDid = didResponse.data.did;
+		console.log({ inviteeHandle, inviteeDid });
+		if (inviteeDid.length < 1) {
+			console.error('failed to lookup inviteeDid for ', inviteeHandle);
+			return { success: false };
+		}
 
-		console.log(`POST invite guild.uri: ${guild.uri}`);
-
-		const invite = await guildService.inviteHandle(handle, guild.uri, locals.db);
+		const invite = await guildService.inviteHandle(
+			inviteeHandle,
+			inviteeDid,
+			guild.uri,
+			locals.db,
+			agent
+		);
 		return {
 			success: false,
 			invite

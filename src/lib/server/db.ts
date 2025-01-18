@@ -35,9 +35,11 @@ export type Guild = {
 };
 
 export type GuildInvite = {
+	id?: number,
 	guildUri: string;
 	invitee: string;
 	createdAt: string;
+	acceptedAt?: string;
 };
 
 export type GuildMember = {
@@ -134,6 +136,7 @@ migrations['003'] = {
 			.addColumn('guildUri', 'varchar', (col) => col.notNull())
 			.addColumn('invitee', 'varchar', (col) => col.notNull())
 			.addColumn('createdAt', 'varchar', (col) => col.notNull())
+			.addColumn('acceptedAt', 'varchar')
 			.execute();
 	},
 	async down(db: Kysely<unknown>) {

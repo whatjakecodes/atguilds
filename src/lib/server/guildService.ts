@@ -339,11 +339,47 @@ async function getGuildInvites(guildUri: string, db: Database): Promise<GuildInv
 	return await db
 		.selectFrom('guild_invite')
 		.where('guildUri', '=', guildUri)
+		.where('acceptedAt', 'is', null)
 		.selectAll('guild_invite')
 		.execute();
 }
 
-async function inviteHandle(handle: string, guildUri: string, db: Database): Promise<GuildInvite> {
+async function inviteHandle(
+	handle: string,
+	inviteeDid: string,
+	guildUri: string,
+	db: Database,
+	agent: Agent
+): Promise<GuildInvite> {
+	const guildRkey = guildUri.split('/').at(-1)!;
+
+	const existingGuild = await agent.com.atproto.repo.getRecord({
+		rkey: guildRkey,
+		repo: agent.assertDid,
+		collection: ids.DevJakestoutAtguildsGuild
+	});
+
+	const validatedGuild = getValidatedGuild(existingGuild.data);
+	if (!validatedGuild) {
+		console.error({ validatedGuild });
+		throw new Error('Invited to invalid guild');
+	}
+
+	validatedGuild?.members.push(inviteeDid);
+
+	// update existing guild record members array
+	const response = await agent.com.atproto.repo.putRecord({
+		repo: agent.assertDid,
+		collection: ids.DevJakestoutAtguildsGuild,
+		record: validatedGuild,
+		rkey: guildRkey
+	});
+
+	if (!response.success) {
+		console.error({ response });
+		throw new Error('failed to update guild member list with invitee');
+	}
+
 	return await db
 		.insertInto('guild_invite')
 		.values({
@@ -359,6 +395,141 @@ function getGuildUri(leaderDid: string, guildRkey: string) {
 	return `at://${leaderDid}/${ids.DevJakestoutAtguildsGuild}/${guildRkey}`;
 }
 
+type InviteWithGuild = {
+	inviteId: number;
+	invitee: string;
+	// Guild fields
+	uri: string;
+	creatorDid: string;
+	guildName: string;
+};
+
+async function getUserInvites(handle: string, db: Database): Promise<InviteWithGuild[]> {
+	// Get all invites for the user
+	console.log({ handle });
+	const invites = await db
+		.selectFrom('guild_invite')
+		.selectAll()
+		.where('invitee', '=', handle)
+		.where('acceptedAt', 'is', null)
+		.execute();
+	console.log({ invites });
+
+	// Get unique guild URIs from invites
+	const guildUris = [...new Set(invites.map((invite) => invite.guildUri))];
+
+	// Get all guilds for those invites
+	const guilds = await db.selectFrom('guild').selectAll().where('uri', 'in', guildUris).execute();
+
+	return invites.map((invite) => {
+		const guild = guilds.find((g) => g.uri === invite.guildUri)!;
+		return {
+			inviteId: invite.id!,
+			invitee: invite.invitee,
+			// Guild fields
+			uri: guild.uri,
+			creatorDid: guild.creatorDid,
+			guildName: guild.name
+		};
+	});
+}
+
+async function acceptInvite(inviteId: number, handle: string, db: Database, agent: Agent) {
+	console.log({ inviteId, handle });
+	const invite = await db
+		.selectFrom('guild_invite')
+		.selectAll()
+		.where('id', '=', inviteId)
+		.where('acceptedAt', 'is', null)
+		.executeTakeFirst();
+
+	if (!invite) {
+		console.log('invite not found');
+		return null;
+	}
+
+	const guild = await db
+		.selectFrom('guild')
+		.select(['uri'])
+		.where('uri', '=', invite.guildUri)
+		.selectAll()
+		.executeTakeFirstOrThrow();
+
+	// const guildRkey = guild.uri.split('/').at(-1)!;
+	console.log('joining guild:');
+	console.log({ guild });
+
+	const inputGuildMemberClaim = {
+		guildUri: guild.uri,
+		createdAt: new Date().toISOString()
+	};
+
+	const guildMemberClaim = GuildMemberClaimRecord.validateRecord(inputGuildMemberClaim);
+	if (!guildMemberClaim.success) {
+		console.error(guildMemberClaim.error);
+		return null;
+	}
+
+	const guildMemberClaimRecord = guildMemberClaim.value as GuildMemberClaimRecord.Record;
+
+	console.log('writing to atproto');
+	console.log({ guildMemberClaimRecord, did: agent.assertDid });
+
+	const response = await agent.com.atproto.repo.applyWrites({
+		repo: agent.assertDid,
+		writes: [
+			{
+				$type: 'com.atproto.repo.applyWrites#create',
+				collection: ids.DevJakestoutAtguildsGuildMemberClaim,
+				rkey: TID.nextStr(),
+				value: guildMemberClaimRecord
+			}
+		]
+	});
+
+	if (!response.success) {
+		const errData = response.data;
+		const errHeaders = response.headers;
+		console.error({ errData });
+		console.error({ errHeaders });
+	}
+
+	if (!response.success || !response.data.results || response.data.results.length === 0) {
+		console.error(`Failed to accept invite to guild:`);
+		console.error({ response });
+		return null;
+	}
+
+	const guildMemberUri = response.data.results[0].uri as string;
+
+	await db
+		.insertInto('guild_member')
+		.values({
+			uri: guildMemberUri,
+			memberDid: agent.assertDid,
+			guildUri: guild.uri,
+			createdAt: new Date().toISOString(),
+			indexedAt: new Date().toISOString()
+		})
+		.execute();
+
+	const acceptedInvite = await db
+		.updateTable('guild_invite')
+		.set({
+			acceptedAt: new Date().toISOString()
+		})
+		.where('id', '=', inviteId)
+		.where('invitee', '=', handle)
+		.returningAll()
+		.executeTakeFirstOrThrow();
+
+	console.log({ acceptedInvite });
+
+	console.log({ guild });
+
+	return guild;
+}
+
 const guildService = {
 	create,
 	getGuild,
@@ -366,7 +537,9 @@ const guildService = {
 	getGuildMembers,
 	getUserGuilds,
 	syncLocals,
-	inviteHandle
+	inviteHandle,
+	getUserInvites,
+	acceptInvite
 };
 
 export default guildService;
