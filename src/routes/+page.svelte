@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-
 	const { data } = $props();
 </script>
 
@@ -15,7 +13,7 @@
 	</h1>
 
 	{#if data.profile}
-		<p>Logged in as: <span>{data.profile.displayName}</span></p>
+		<h1>Hi, <span>{data.profile.displayName}</span></h1>
 
 		{#if data.guilds}
 			<span>In guilds: </span>
