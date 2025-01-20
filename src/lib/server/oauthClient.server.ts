@@ -35,10 +35,3 @@ export const createClient = async (db: Database) => {
 		stateStore: new StateStore(db)
 	});
 };
-
-const prependHttps = (url) => {
-	if (!url.match(/^https?:\/\//i)) {
-		return `https://${url}`;
-	}
-	return url;
-};

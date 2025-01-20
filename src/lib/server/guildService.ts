@@ -213,7 +213,9 @@ async function syncLocals(agent: null | Agent, db: Database) {
 			console.log({ guildsToInsert });
 			await trx.insertInto('guild').values(guildsToInsert).execute();
 		}
+	});
 
+	await db.transaction().execute(async (trx) => {
 		if (guildMembersToAdd.length > 0) {
 			const membersToInsert = guildMembersToAdd.map((record) => ({
 				uri: record.uri,
