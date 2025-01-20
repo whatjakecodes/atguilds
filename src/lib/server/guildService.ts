@@ -260,7 +260,10 @@ async function getUserGuilds(userDid: string, db: Database): Promise<Guild[]> {
 	return await db
 		.selectFrom('guild_member')
 		.innerJoin('guild', 'guild.uri', 'guild_member.guildUri')
-		.where('guild_member.memberDid', '=', userDid)
+		.where((eb) =>
+			eb.or([eb('guild_member.memberDid', '=', userDid), eb('guild.leaderDid', '=', userDid)])
+		)
+		.distinct()
 		.selectAll('guild')
 		.execute();
 }
