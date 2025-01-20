@@ -1,5 +1,14 @@
 <script lang="ts">
 	const { data } = $props();
+
+	async function handleSyncClick() {
+		try {
+			await fetch('/sync');
+			window.location.reload();
+		} catch (error) {
+			console.error('Error syncing data:', error);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -69,6 +78,12 @@
 				Create Guild
 			</button>
 		</form>
+
+		<section>
+			<button onclick={handleSyncClick}>
+				Sync with PDS
+			</button>
+		</section>
 	{/if}
 </section>
 

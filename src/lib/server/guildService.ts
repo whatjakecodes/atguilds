@@ -3,7 +3,7 @@ import { ids } from '$lib/lexicon/lexicons';
 import * as GuildRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guild';
 import * as GuildMemberClaimRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guildMemberClaim';
 import { TID } from '@atproto/common';
-import type { Database, Guild, GuildInvite, GuildMember } from '$lib/server/db';
+import type { Database, ExistingGuildInvite, Guild, GuildMember } from '$lib/server/db';
 import { type OutputSchema } from '@atproto/api/src/client/types/com/atproto/repo/getRecord';
 
 async function create(agent: Agent, db: Database, guildName: string) {
@@ -105,35 +105,6 @@ async function create(agent: Agent, db: Database, guildName: string) {
 	return createdGuild;
 }
 
-// interface ATGuildRecord {
-// 	uri: string;
-// 	cid: string;
-// 	guild: GuildRecord.Record;
-// }
-
-// async function GetPdsGuildsLead(agent: Agent): Promise<ATGuildRecord[]> {
-// 	const { data } = await agent.com.atproto.repo.listRecords({
-// 		repo: agent.assertDid,
-// 		collection: ids.DevJakestoutAtguildsGuild
-// 	});
-//
-// 	return data.records
-// 		.map((record) => {
-// 			const v = getValidatedGuild(record);
-//
-// 			if (!v) {
-// 				return null;
-// 			}
-//
-// 			return {
-// 				cid: record.cid,
-// 				uri: record.uri,
-// 				guild: v
-// 			};
-// 		})
-// 		.filter((record) => !!record);
-// }
-
 async function GetPdsGuildsClaimedMemberOf(agent: Agent, guildUris: string[]) {
 	const unvalidatedGuilds = [];
 	for (const uri of guildUris) {
@@ -142,12 +113,18 @@ async function GetPdsGuildsClaimedMemberOf(agent: Agent, guildUris: string[]) {
 
 		// todo: how to fetch from multiple repos?
 		// rely on a firehose setup?
-		const { data } = await agent.com.atproto.repo.getRecord({
+		console.log('fetching guild...');
+		const requestQuery = {
 			repo: guildLeaderRepo,
 			collection: ids.DevJakestoutAtguildsGuild,
 			rkey: guildRkey
-		});
-		unvalidatedGuilds.push(data);
+		};
+		try {
+			const { data } = await agent.com.atproto.repo.getRecord(requestQuery);
+			unvalidatedGuilds.push(data);
+		} catch {
+			console.error(`failed to sync guild via: ${uri}`);
+		}
 	}
 
 	return unvalidatedGuilds
@@ -193,6 +170,8 @@ async function GetPdsGuildMemberClaims(agent: Agent) {
 async function syncLocals(agent: null | Agent, db: Database) {
 	if (!agent) return;
 	const userDid = agent.assertDid;
+
+	console.log(`begin syncLocals for ${userDid}`);
 	const pdsGuildMemberClaimRecords = await GetPdsGuildMemberClaims(agent);
 	const guildUris = pdsGuildMemberClaimRecords
 		.map((claim) => claim?.guildMemberClaim.guildUri.replace('at://', ''))
@@ -208,49 +187,43 @@ async function syncLocals(agent: null | Agent, db: Database) {
 
 	// add missing records to database
 	const guildsToAdd = pdsGuildsUserClaims.filter((record) => {
-		const existingLocal = dbGuilds.find((dbG) => dbG.cid == record.cid);
+		const existingLocal = dbGuilds.find((dbG) => dbG.uri == record.uri);
 		return !existingLocal;
 	});
 
 	const guildMembersToAdd = pdsGuildMemberClaimRecords
 		.filter((record) => {
-			const guildUri = record?.guildMemberClaim.guildUri;
-			const isMember = guildsToAdd.find((pdsGuild) => pdsGuild.uri == guildUri);
-			const existingLocal = dbGuildMembers.find((dbM) => dbM.guildUri === guildUri);
-			return isMember && !existingLocal;
+			const memberUri = record?.uri;
+			const existingLocal = dbGuildMembers.find((dbM) => dbM.uri === memberUri);
+			return !existingLocal;
 		})
 		.filter((r) => !!r);
 
 	await db.transaction().execute(async (trx) => {
 		if (guildsToAdd.length > 0) {
-			await trx
-				.insertInto('guild')
-				.values(
-					guildsToAdd.map((record) => ({
-						uri: record.uri,
-						cid: record.cid!,
-						name: record.guild.name,
-						createdAt: record.guild.createdAt,
-						creatorDid: userDid,
-						leaderDid: userDid,
-						indexedAt: indexedAt
-					}))
-				)
-				.execute();
+			const guildsToInsert = guildsToAdd.map((record) => ({
+				uri: record.uri,
+				cid: record.cid!,
+				name: record.guild.name,
+				createdAt: record.guild.createdAt,
+				creatorDid: userDid,
+				leaderDid: userDid,
+				indexedAt: indexedAt
+			}));
+			console.log({ guildsToInsert });
+			await trx.insertInto('guild').values(guildsToInsert).execute();
+		}
 
-			// Add guild member entry for the creator
-			await trx
-				.insertInto('guild_member')
-				.values(
-					guildMembersToAdd.map((record) => ({
-						uri: record.uri,
-						guildUri: record.guildMemberClaim.guildUri,
-						memberDid: userDid,
-						createdAt: record.guildMemberClaim.createdAt,
-						indexedAt: indexedAt
-					}))
-				)
-				.execute();
+		if (guildMembersToAdd.length > 0) {
+			const membersToInsert = guildMembersToAdd.map((record) => ({
+				uri: record.uri,
+				guildUri: record.guildMemberClaim.guildUri,
+				memberDid: userDid,
+				createdAt: record.guildMemberClaim.createdAt,
+				indexedAt: indexedAt
+			}));
+			console.log({ membersToInsert });
+			await trx.insertInto('guild_member').values(membersToInsert).execute();
 		}
 	});
 }
@@ -280,21 +253,6 @@ function getValidatedGuildMemberClaim(record: OutputSchema): GuildMemberClaimRec
 		return null;
 	}
 }
-
-// async function getPdsGuild(
-// 	agent: Agent,
-// 	atIdentity: string,
-// 	rkey: string
-// ): Promise<GuildRecord.Record | null> {
-// 	const { data } = await agent.com.atproto.repo.getRecord({
-// 		repo: atIdentity,
-// 		collection: ids.DevJakestoutAtguildsGuild,
-// 		rkey: rkey
-// 	});
-//
-//
-// 	return getValidatedGuild(data);
-// }
 
 async function getUserGuilds(userDid: string, db: Database): Promise<Guild[]> {
 	return await db
@@ -335,12 +293,12 @@ async function getGuildMembers(
 		.execute();
 }
 
-async function getGuildInvites(guildUri: string, db: Database): Promise<GuildInvite[]> {
+async function getGuildInvites(guildUri: string, db: Database): Promise<ExistingGuildInvite[]> {
 	return await db
 		.selectFrom('guild_invite')
 		.where('guildUri', '=', guildUri)
 		.where('acceptedAt', 'is', null)
-		.selectAll('guild_invite')
+		.selectAll()
 		.execute();
 }
 
@@ -350,7 +308,7 @@ async function inviteHandle(
 	guildUri: string,
 	db: Database,
 	agent: Agent
-): Promise<GuildInvite> {
+): Promise<ExistingGuildInvite> {
 	const guildRkey = guildUri.split('/').at(-1)!;
 
 	const existingGuild = await agent.com.atproto.repo.getRecord({
@@ -398,25 +356,27 @@ function getGuildUri(leaderDid: string, guildRkey: string) {
 type InviteWithGuild = {
 	inviteId: number;
 	invitee: string;
-	// Guild fields
 	uri: string;
 	creatorDid: string;
 	guildName: string;
 };
 
 async function getUserInvites(handle: string, db: Database): Promise<InviteWithGuild[]> {
-	// Get all invites for the user
-	console.log({ handle });
 	const invites = await db
 		.selectFrom('guild_invite')
 		.selectAll()
 		.where('invitee', '=', handle)
 		.where('acceptedAt', 'is', null)
 		.execute();
-	console.log({ invites });
 
 	// Get unique guild URIs from invites
 	const guildUris = [...new Set(invites.map((invite) => invite.guildUri))];
+
+	if (guildUris.length == 0) {
+		return [];
+	}
+
+	console.log({ guildUris });
 
 	// Get all guilds for those invites
 	const guilds = await db.selectFrom('guild').selectAll().where('uri', 'in', guildUris).execute();

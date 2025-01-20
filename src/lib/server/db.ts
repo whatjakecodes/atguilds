@@ -1,5 +1,13 @@
-import SqliteDb from 'better-sqlite3';
-import { Kysely, Migrator, SqliteDialect, type MigrationProvider, type Migration } from 'kysely';
+import {
+	type GeneratedAlways,
+	Kysely,
+	type Migration,
+	type MigrationProvider,
+	Migrator
+} from 'kysely';
+
+import { NeonDialect } from 'kysely-neon';
+import { neonConfig } from '@neondatabase/serverless';
 
 // Types
 export type DatabaseSchema = {
@@ -7,7 +15,7 @@ export type DatabaseSchema = {
 	auth_state: AuthState;
 	guild: Guild;
 	guild_member: GuildMember;
-	guild_invite: GuildInvite;
+	guild_invite: NewGuildInvite;
 };
 
 export type AuthSession = {
@@ -34,12 +42,19 @@ export type Guild = {
 	indexedAt: string;
 };
 
-export type GuildInvite = {
-	id?: number,
+type GuildInviteBase = {
 	guildUri: string;
 	invitee: string;
 	createdAt: string;
 	acceptedAt?: string;
+};
+
+export type NewGuildInvite = GuildInviteBase & {
+	id: GeneratedAlways<number>;
+};
+
+export type ExistingGuildInvite = GuildInviteBase & {
+	id: number;
 };
 
 export type GuildMember = {
@@ -132,7 +147,7 @@ migrations['003'] = {
 	async up(db: Kysely<unknown>) {
 		await db.schema
 			.createTable('guild_invite')
-			.addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement())
+			.addColumn('id', 'serial', (col) => col.primaryKey())
 			.addColumn('guildUri', 'varchar', (col) => col.notNull())
 			.addColumn('invitee', 'varchar', (col) => col.notNull())
 			.addColumn('createdAt', 'varchar', (col) => col.notNull())
@@ -144,12 +159,23 @@ migrations['003'] = {
 	}
 };
 
+if (!process.env.VERCEL_ENV) {
+	// from https://gal.hagever.com/posts/running-vercel-postgres-locally
+	console.log('VERCEL_ENV not found. Setting up local websocket proxy.');
+	// Set the WebSocket proxy to work with the local instance
+	neonConfig.wsProxy = (host) => `${host}:5433/v1`;
+	// Disable all authentication and encryption
+	neonConfig.useSecureWebSocket = false;
+	neonConfig.pipelineTLS = false;
+	neonConfig.pipelineConnect = false;
+}
+
 // APIs
 export const createDb = (location: string): Database => {
 	console.log(`createDB with location: ${location}`);
 	return new Kysely<DatabaseSchema>({
-		dialect: new SqliteDialect({
-			database: new SqliteDb(location)
+		dialect: new NeonDialect({
+			connectionString: location
 		})
 	});
 };

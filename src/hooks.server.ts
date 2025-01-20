@@ -1,10 +1,14 @@
 import { createClient } from '$lib/server/oauthClient.server';
 import { createDb, migrateToLatest } from '$lib/server/db';
-import { DB_PATH } from '$env/static/private';
+import { DATABASE_URL } from '$env/static/private';
 import { building } from '$app/environment';
 import { createBidirectionalResolver, createIdResolver } from '$lib/server/id-resolver';
 
-const db = createDb(DB_PATH);
+if (!DATABASE_URL) {
+	throw new Error("DATABASE_URL is not set.");
+}
+
+const db = createDb(DATABASE_URL);
 await migrateToLatest(db);
 
 export async function handle({ event, resolve }) {

@@ -9,10 +9,11 @@ Install dependencies with `pnpm install`.
 Start a development server:
 
 ```bash
-pnpm run dev
+# start postgres
+docker-compose up -d
 
-# or start the server and open the app in a new browser tab
-pnpm run dev -- --open
+# run app
+pnpm run dev
 ```
 
 ### Lexicon Code Gen
