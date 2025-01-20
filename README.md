@@ -15,6 +15,13 @@ pnpm run dev
 pnpm run dev -- --open
 ```
 
+### Lexicon Code Gen
+
+To (re)generate TypeScript [code](src/lib/lexicon) for guild lexicons
+
+`./node_modules/.bin/lex gen-server ./src/lib/lexicon ./lexicons/*`
+
+
 ## Building
 
 To create a production version of your app:
@@ -25,12 +32,7 @@ pnpm run build
 
 You can preview the production build with `pnpm run preview`.
 
-## Speed Insights
 
-Once deployed on Vercel, you can benefit from [Speed Insights](https://vercel.com/docs/concepts/speed-insights) simply by navigating to Vercel's dashboard, clicking on the 'Speed Insights' tab, and enabling the product.
+## About
 
-You will get data once your application will be re-deployed and will receive visitors.
-
-## Lexicon Code Gen
-
-`./node_modules/.bin/lex gen-server ./src/lib/lexicon ./lexicons/*`
+Winner of "Best Bluesky Fun Project" @ Jan 2025 [LFC.DEV](https://lfc.dev/) - [Bluesky/ATProto Hackathon](https://lu.ma/olts6pug) 
