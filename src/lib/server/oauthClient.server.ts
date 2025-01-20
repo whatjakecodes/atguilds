@@ -13,8 +13,8 @@ export const createClient = async (db: Database) => {
 	}
 
 	if (privateEnv.VERCEL_URL) {
-		console.log(`Using VERCEL_URL for oauth redirect: ${privateEnv.VERCEL_URL}`);
-		publicUrl = privateEnv.VERCEL_URL;
+		publicUrl = prependHttps(privateEnv.VERCEL_URL);
+		console.log(`Using VERCEL_URL for oauth redirect: ${publicUrl}`);
 	}
 	const url = publicUrl || `http://127.0.0.1:${PORT}`;
 	return new NodeOAuthClient({
@@ -35,4 +35,11 @@ export const createClient = async (db: Database) => {
 		sessionStore: new SessionStore(db),
 		stateStore: new StateStore(db)
 	});
+};
+
+const prependHttps = (url) => {
+	if (!url.match(/^https?:\/\//i)) {
+		return `https://${url}`;
+	}
+	return url;
 };
