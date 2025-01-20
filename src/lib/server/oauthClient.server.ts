@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
 import { PORT } from '$env/static/private';
 import { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { SessionStore, StateStore } from './storage';
@@ -6,7 +7,15 @@ import type { Database } from '$lib/server/db';
 
 export const createClient = async (db: Database) => {
 	const enc = encodeURIComponent;
-	const publicUrl = env.PUBLIC_OAUTH_REDIRECT_URL;
+	let publicUrl = env.PUBLIC_OAUTH_REDIRECT_URL;
+	if (env.PUBLIC_OAUTH_REDIRECT_URL) {
+		console.log(`Using PUBLIC_OAUTH_REDIRECT_URL for oauth redirect: ${publicUrl}`);
+	}
+
+	if (privateEnv.VERCEL_URL) {
+		console.log(`Using VERCEL_URL for oauth redirect: ${privateEnv.VERCEL_URL}`);
+		publicUrl = privateEnv.VERCEL_URL;
+	}
 	const url = publicUrl || `http://127.0.0.1:${PORT}`;
 	return new NodeOAuthClient({
 		clientMetadata: {
