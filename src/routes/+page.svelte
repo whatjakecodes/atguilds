@@ -19,96 +19,101 @@
 	<meta name="description" content="Portable ATProtocol Guilds" />
 </svelte:head>
 
-<section>
-	<h1>
-		ATGuilds
-	</h1>
-
+<div class="container mx-auto px-4 py-8">
 	{#if data.profile}
-		<h1>Hi, <span>{data.profile.displayName}</span></h1>
+		<h2 class="text-xl font-semibold mb-8">Hi, <span class="text-blue-600">{data.profile.displayName}</span></h2>
+		<div class="flex flex-col md:flex-row gap-8">
+			<!-- Left Column - Guild Lists -->
+			<div class="w-full md:w-1/2 space-y-6">
 
-		{#if leaderOfGuilds.length > 0}
-			<span>Leader of: </span>
-			<ul>
-				{#each leaderOfGuilds as g}
-					<li><a href="/guild/{g.uri.replace('at://', 'at/')}">{g.name}</a></li>
-				{/each}
-			</ul>
-		{/if}
+				{#if leaderOfGuilds.length > 0}
+					<div class="bg-white p-4 rounded-lg shadow">
+						<h3 class="font-medium mb-2">Leader of:</h3>
+						<ul class="space-y-2">
+							{#each leaderOfGuilds as g}
+								<li>
+									<a href="/guild/{g.uri.replace('at://', 'at/')}"
+										 class="text-blue-600 hover:text-blue-800 hover:underline">
+										{g.name}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
 
-		{#if memberOfGuilds.length > 0}
-			<span>Member of: </span>
-			<ul>
-				{#each memberOfGuilds as g}
-					<li><a href="/guild/{g.uri.replace('at://', 'at/')}">{g.name}</a></li>
-				{/each}
-			</ul>
-		{/if}
+				{#if memberOfGuilds.length > 0}
+					<div class="bg-white p-4 rounded-lg shadow">
+						<h3 class="font-medium mb-2">Member of:</h3>
+						<ul class="space-y-2">
+							{#each memberOfGuilds as g}
+								<li>
+									<a href="/guild/{g.uri.replace('at://', 'at/')}"
+										 class="text-blue-600 hover:text-blue-800 hover:underline">
+										{g.name}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
 
-		{#if data.invites}
-			<span>Invites: </span>
-			<ul>
-				{#each data.invites as i}
-					<li>
+				{#if data.invites}
+					<div class="bg-white p-4 rounded-lg shadow">
+						<h3 class="font-medium mb-2">Invites:</h3>
+						<ul class="space-y-2">
+							{#each data.invites as i}
+								<li>
+									<form method="POST" action="?/acceptInvite" class="flex items-center gap-2">
+										<input type="hidden" name="inviteId" value={i.inviteId} />
+										<span>{i.guildName}</span>
+										<button type="submit"
+														class="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:underline">
+											Accept
+										</button>
+									</form>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
 
-						<form
-							method="POST"
-							action="?/acceptInvite"
-						>
-							<input type="hidden" name="inviteId" value={i.inviteId} />
-							<span>{i.guildName}</span>
-							<button type="submit" class="link-button">
-								Accept
-							</button>
-						</form>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-
-		<form method="POST" action="?/createGuild" class="space-y-4">
-			<div>
-				<label for="guildName" class="block text-sm font-medium mb-1">
-					Guild Name
-				</label>
-				<input
-					type="text"
-					id="guildName"
-					name="guildName"
-					class="w-full px-3 py-2 border rounded-md"
-					required
-					minlength="3"
-					maxlength="50"
-					placeholder="Enter guild name"
-				/>
+				<button onclick={handleSyncClick}
+								class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded">
+					Sync with PDS
+				</button>
 			</div>
 
-			<button
-				type="submit"
-				class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-			>
-				Create Guild
-			</button>
-		</form>
+			<!-- Right Column - Create Guild Form -->
+			<div class="w-full md:w-1/2">
+				<div class="bg-white p-6 rounded-lg shadow">
+					<h2 class="text-xl font-semibold mb-4">Create Guild</h2>
+					<form method="POST" action="?/createGuild" class="space-y-4">
+						<div>
+							<label for="guildName" class="block text-sm font-medium text-gray-700 mb-1">
+								Guild Name
+							</label>
+							<input
+								type="text"
+								id="guildName"
+								name="guildName"
+								class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+								required
+								minlength="3"
+								maxlength="50"
+								placeholder="Enter guild name"
+							/>
+						</div>
 
-		<section>
-			<button onclick={handleSyncClick}>
-				Sync with PDS
-			</button>
-		</section>
+						<button
+							type="submit"
+							class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+						>
+							Create Guild
+						</button>
+					</form>
+				</div>
+			</div>
+		</div>
 	{/if}
-</section>
-
-<style>
-    section {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        flex: 0.6;
-    }
-
-    h1 {
-        width: 100%;
-    }
-</style>
+</div>

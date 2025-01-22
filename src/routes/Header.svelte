@@ -1,81 +1,49 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import github from '$lib/images/github.svg';
 </script>
 
-<header>
-	<div class="corner"></div>
+<header class="flex justify-between">
+	<div class="w-12 h-12"></div>
 
-	<nav>
-		<ul>
-			<li aria-current={$page.url.pathname === '/' ? 'page' : undefined}>
-				<a href="/">Home</a>
+	<nav class="flex justify-center">
+		<ul class="flex items-center justify-center h-12 bg-white/70 m-0 p-0 list-none">
+			<li class="relative h-full" aria-current={page.url.pathname === '/' ? 'page' : undefined}>
+				<a href="/"
+					 class={`flex items-center h-full px-2 font-bold text-sm uppercase tracking-wider transition-colors
+           ${page.url.pathname === '/' ? 'text-blue-500' : 'hover:text-blue-400'}`}>
+					Home
+				</a>
 			</li>
-			<li aria-current={$page.url.pathname === '/about' ? 'page' : undefined}>
-				<a href="/about">About</a>
+			<li class="relative h-full" aria-current={page.url.pathname === '/about' ? 'page' : undefined}>
+				<a href="/about"
+					 class={`flex items-center h-full px-2 font-bold text-sm uppercase tracking-wider transition-colors
+           ${page.url.pathname === '/about' ? 'text-blue-500' : 'hover:text-blue-400'}`}>
+					About
+				</a>
 			</li>
-			<li aria-current={$page.url.pathname === '/login' ? 'page' : undefined}>
-				<a href="/login">Login</a>
+			<li class="relative h-full" aria-current={page.url.pathname === '/login' ? 'page' : undefined}>
+				<a href="/login"
+					 class={`flex items-center h-full px-2 font-bold text-sm uppercase tracking-wider transition-colors
+           ${page.url.pathname === '/login' ? 'text-blue-500' : 'hover:text-blue-400'}`}>
+					Login
+				</a>
 			</li>
 		</ul>
 	</nav>
 
-	<div class="corner">
-		<a href="https://github.com/whatjakecodes/atguilds">
-			<img src={github} alt="GitHub" />
+	<div class="w-12 h-12">
+		<a href="https://github.com/whatjakecodes/atguilds"
+			 class="flex items-center justify-center w-full h-full">
+			<img src={github} alt="GitHub" class="w-8 h-8 object-contain" />
 		</a>
 	</div>
 </header>
 
+<h1 class="text-3xl font-bold mb-8 text-center mt-5">ATGuilds</h1>
+
 <style>
-    header {
-        display: flex;
-        justify-content: space-between;
-    }
-
-    .corner {
-        width: 3em;
-        height: 3em;
-    }
-
-    .corner a {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-    }
-
-    .corner img {
-        width: 2em;
-        height: 2em;
-        object-fit: contain;
-    }
-
-    nav {
-        display: flex;
-        justify-content: center;
-        --background: rgba(255, 255, 255, 0.7);
-    }
-
-    ul {
-        position: relative;
-        padding: 0;
-        margin: 0;
-        height: 3em;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        list-style: none;
-        background: var(--background);
-        background-size: contain;
-    }
-
-    li {
-        position: relative;
-        height: 100%;
-    }
-
+    /* Keep only the active page indicator style since it uses custom properties */
     li[aria-current='page']::before {
         --size: 6px;
         content: '';
@@ -86,23 +54,5 @@
         left: calc(50% - var(--size));
         border: var(--size) solid transparent;
         border-top: var(--size) solid var(--color-theme-1);
-    }
-
-    nav a {
-        display: flex;
-        height: 100%;
-        align-items: center;
-        padding: 0 0.5rem;
-        color: var(--color-text);
-        font-weight: 700;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        text-decoration: none;
-        transition: color 0.2s linear;
-    }
-
-    a:hover {
-        color: var(--color-theme-1);
     }
 </style>
