@@ -254,9 +254,14 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 
 	const guildMembersToAdd = pdsOtherMembers
 		.filter((record) => {
-			const memberUri = record?.uri;
-			const existingLocal = dbMembers.find((dbM) => dbM.uri === memberUri?.toString());
-			return !existingLocal;
+			const memberDid = record.uri.hostname;
+			const isInGuild = pdsGuilds.find(
+				(guildRecord) =>
+					guildRecord.uri === record.guildMemberClaim.guildUri &&
+					guildRecord.guild.members.includes(memberDid)
+			);
+			const existingLocal = dbMembers.find((dbM) => dbM.uri === record.uri.toString());
+			return !existingLocal && isInGuild;
 		})
 		.filter((r) => !!r);
 
@@ -377,19 +382,14 @@ async function getGuildInvites(guildUri: string, db: Database): Promise<Existing
 		.execute();
 }
 
-async function inviteHandle(
-	handle: string,
-	inviteeDid: string,
-	guildUri: string,
-	db: Database,
-	agent: Agent
-): Promise<ExistingGuildInvite> {
-	const guildRkey = guildUri.split('/').at(-1)!;
+async function getPdsGuild(guildAtUri: AtUri, agent: Agent): Promise<GuildRecord.Record> {
+	const guildRkey = guildAtUri.rkey;
+	const leaderDid = guildAtUri.hostname;
 
 	const existingGuild = await agent.com.atproto.repo.getRecord({
-		rkey: guildRkey,
-		repo: agent.assertDid,
-		collection: ids.DevJakestoutAtguildsGuild
+		repo: leaderDid,
+		collection: ids.DevJakestoutAtguildsGuild,
+		rkey: guildRkey
 	});
 
 	const validatedGuild = getValidatedGuild(existingGuild.data);
@@ -397,15 +397,28 @@ async function inviteHandle(
 		console.error({ validatedGuild });
 		throw new Error('Invited to invalid guild');
 	}
+	return validatedGuild;
+}
 
-	validatedGuild?.members.push(inviteeDid);
+async function inviteHandle(
+	inviteeHandle: string,
+	inviteeDid: string,
+	guildUri: string,
+	db: Database,
+	agent: Agent,
+	resolver: BidirectionalResolver
+): Promise<void> {
+	const guildAtUri = new AtUri(guildUri);
+	const validatedGuild = await getPdsGuild(guildAtUri, agent);
+
+	validatedGuild.members.push(inviteeDid);
 
 	// update existing guild record members array
 	const response = await agent.com.atproto.repo.putRecord({
-		repo: agent.assertDid,
+		repo: guildAtUri.hostname,
 		collection: ids.DevJakestoutAtguildsGuild,
-		record: validatedGuild,
-		rkey: guildRkey
+		rkey: guildAtUri.rkey,
+		record: validatedGuild
 	});
 
 	if (!response.success) {
@@ -413,15 +426,33 @@ async function inviteHandle(
 		throw new Error('failed to update guild member list with invitee');
 	}
 
-	return await db
+	const memberPdsEndpoint = await resolver.resolvePDSEndpoint(inviteeDid);
+	const memberAgent = new AtpAgent({ service: memberPdsEndpoint });
+	const memberClaims = await memberAgent.com.atproto.repo.listRecords({
+		repo: inviteeDid,
+		collection: ids.DevJakestoutAtguildsGuildMemberClaim
+	});
+
+	if (memberClaims.success) {
+		const existingClaim = memberClaims.data.records.find((record) => {
+			const claim = getValidatedGuildMemberClaim(record);
+			return claim !== null && claim.guildUri === guildUri;
+		});
+
+		if (existingClaim) {
+			// no need to invite; member has MemberClaim to the guild already
+			return;
+		}
+	}
+
+	await db
 		.insertInto('guild_invite')
 		.values({
 			guildUri,
-			invitee: handle,
+			invitee: inviteeHandle,
 			createdAt: new Date().toISOString()
 		})
-		.returningAll()
-		.executeTakeFirstOrThrow();
+		.execute();
 }
 
 function getGuildUri(leaderDid: string, guildRkey: string) {
@@ -565,6 +596,53 @@ async function acceptInvite(inviteId: number, handle: string, db: Database, agen
 	return guild;
 }
 
+async function removeMember(
+	memberDid: string,
+	leaderDid: string,
+	guildRkey: string,
+	db: Database,
+	agent: Agent
+) {
+	const guildAtUri = new AtUri(`${leaderDid}/${ids.DevJakestoutAtguildsGuild}/${guildRkey}`);
+	const guild = await getPdsGuild(guildAtUri, agent);
+
+	// remove member
+	guild.members = guild.members.filter((member) => member !== memberDid);
+
+	// update existing guild record members array
+	const response = await agent.com.atproto.repo.putRecord({
+		repo: guildAtUri.hostname,
+		collection: ids.DevJakestoutAtguildsGuild,
+		rkey: guildAtUri.rkey,
+		record: guild
+	});
+
+	if (!response.success) {
+		console.error({ response });
+		throw new Error('failed to remove member from guild on PDS');
+	}
+
+	// delete any pending invites
+	await db
+		.deleteFrom('guild_invite')
+		.where((eb) =>
+			eb.and([eb('invitee', '=', memberDid), eb('guildUri', '=', guildAtUri.toString())])
+		)
+		.execute();
+
+	// update cache
+	return await db
+		.deleteFrom('guild_member')
+		.where((eb) =>
+			eb.and([eb('memberDid', '=', memberDid), eb('guildUri', '=', guildAtUri.toString())])
+		)
+		.execute();
+}
+
+// async function deleteGuild(guildUri: string, db: Database, agent: Agent) {
+// 	console.log(`delete ${guildUri}`);
+// }
+
 const guildService = {
 	create,
 	getGuild,
@@ -574,7 +652,9 @@ const guildService = {
 	syncLocals,
 	inviteHandle,
 	getUserInvites,
-	acceptInvite
+	acceptInvite,
+	removeMember
+	// deleteGuild
 };
 
 export default guildService;

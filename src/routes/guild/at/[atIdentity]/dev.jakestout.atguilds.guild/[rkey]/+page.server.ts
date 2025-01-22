@@ -1,6 +1,6 @@
 import { getAgent } from '$lib/server/agent';
 import guildService from '$lib/server/guildService';
-import { error } from '@sveltejs/kit';
+import { type Actions, error } from '@sveltejs/kit';
 
 export async function load({ params, locals, cookies }) {
 	const atIdentity = params.atIdentity;
@@ -21,16 +21,21 @@ export async function load({ params, locals, cookies }) {
 	const didHandleMap = await locals.resolver.resolveDidsToHandles(
 		guildMembers.map((m) => m.memberDid)
 	);
+
+	const response = await agent.getProfile({
+		actor: agent.assertDid
+	});
 	return {
 		guild,
 		guildMembers,
 		invites,
+		profile: response.data,
 		didHandleMap
 	};
 }
 
 export const actions = {
-	default: async ({ request, locals, cookies, params }) => {
+	inviteMember: async ({ request, locals, cookies, params }) => {
 		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 		if (!agent) {
 			return {
@@ -39,7 +44,7 @@ export const actions = {
 			};
 		}
 
-		const guild = await guildService.getGuild(params.atIdentity, params.rkey, locals.db);
+		const guild = await guildService.getGuild(params.atIdentity!, params.rkey!, locals.db);
 		if (!guild) {
 			return {
 				success: false,
@@ -56,7 +61,6 @@ export const actions = {
 
 		const data = await request.formData();
 		const inviteeHandle = data.get('memberHandle') as string;
-		// const inviteeDid = (await locals.resolver.resolveDidToHandle(inviteeHandle)) as string;
 		const didResponse = await agent.com.atproto.identity.resolveHandle({ handle: inviteeHandle });
 		const inviteeDid = didResponse.data.did;
 		console.log({ inviteeHandle, inviteeDid });
@@ -65,16 +69,43 @@ export const actions = {
 			return { success: false };
 		}
 
-		const invite = await guildService.inviteHandle(
+		await guildService.inviteHandle(
 			inviteeHandle,
 			inviteeDid,
 			guild.uri,
 			locals.db,
-			agent
+			agent,
+			locals.resolver
 		);
+
 		return {
-			success: false,
-			invite
+			success: true
 		};
+	},
+	removeMember: async ({ locals, request, params, cookies }) => {
+		console.log('remove member');
+		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
+		if (!agent) {
+			return {
+				success: false,
+				error: 'You must be logged in to remove members'
+			};
+		}
+
+		const formData = await request.formData();
+
+		const memberDid = formData.get('memberDid') as string;
+		if (!memberDid) {
+			throw Error('must provide memberDid');
+		}
+
+		if (!params.atIdentity || !params.rkey) {
+			throw Error('must include leader did and guild rkey')
+		}
+
+		await guildService.removeMember(memberDid, params.atIdentity, params.rkey, locals.db, agent);
+	},
+	deleteGuild: async () => {
+		console.log('todo: delete guild');
 	}
-};
+} satisfies Actions;
