@@ -400,7 +400,7 @@ async function getPdsGuild(guildAtUri: AtUri, agent: Agent): Promise<GuildRecord
 	return validatedGuild;
 }
 
-async function inviteHandle(
+async function inviteMember(
 	inviteeHandle: string,
 	inviteeDid: string,
 	guildUri: string,
@@ -434,13 +434,26 @@ async function inviteHandle(
 	});
 
 	if (memberClaims.success) {
-		const existingClaim = memberClaims.data.records.find((record) => {
-			const claim = getValidatedGuildMemberClaim(record);
-			return claim !== null && claim.guildUri === guildUri;
-		});
+		const existingClaim = memberClaims.data.records
+			.find((record) => {
+				const claim = getValidatedGuildMemberClaim(record);
+				return claim !== null && claim.guildUri === guildUri;
+			});
 
 		if (existingClaim) {
 			// no need to invite; member has MemberClaim to the guild already
+			const guildUri = getValidatedGuildMemberClaim(existingClaim)!.guildUri;
+			await db
+				.insertInto('guild_member')
+				.values({
+					uri: existingClaim.uri,
+					memberDid: inviteeDid,
+					guildUri,
+					createdAt: new Date().toISOString(),
+					indexedAt: new Date().toISOString()
+				})
+				.execute();
+
 			return;
 		}
 	}
@@ -650,7 +663,7 @@ const guildService = {
 	getGuildMembers,
 	getUserGuilds,
 	syncLocals,
-	inviteHandle,
+	inviteHandle: inviteMember,
 	getUserInvites,
 	acceptInvite,
 	removeMember
