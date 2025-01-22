@@ -5,7 +5,7 @@ import { building } from '$app/environment';
 import { createBidirectionalResolver, createIdResolver } from '$lib/server/id-resolver';
 
 if (!DATABASE_URL) {
-	throw new Error("DATABASE_URL is not set.");
+	throw new Error('DATABASE_URL is not set.');
 }
 
 const db = createDb(DATABASE_URL);
@@ -17,10 +17,10 @@ export async function handle({ event, resolve }) {
 		const client = await createClient(db!);
 		const sessionId = event.cookies.get('sid') || null;
 		event.locals.session = sessionId ? { did: sessionId } : undefined;
-		event.locals.client = client;
+		event.locals.oauthClient = client;
 		event.locals.db = db;
 
-		const baseIdResolver = createIdResolver()
+		const baseIdResolver = createIdResolver();
 		event.locals.resolver = createBidirectionalResolver(baseIdResolver);
 	}
 

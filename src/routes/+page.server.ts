@@ -3,7 +3,7 @@ import { getAgent } from '$lib/server/agent';
 import { error, redirect } from '@sveltejs/kit';
 
 export async function load({ locals, cookies }) {
-	const agent = await getAgent(cookies, locals.session, locals.client);
+	const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 
 	if (!agent) {
 		return {
@@ -29,7 +29,7 @@ export async function load({ locals, cookies }) {
 
 export const actions = {
 	createGuild: async ({ request, locals, cookies }) => {
-		const agent = await getAgent(cookies, locals.session, locals.client);
+		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 		if (!agent) {
 			error(401, 'You must be logged in to create a new guild');
 		}
@@ -53,7 +53,7 @@ export const actions = {
 	},
 
 	acceptInvite: async ({ request, locals, cookies }) => {
-		const agent = await getAgent(cookies, locals.session, locals.client);
+		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 		if (!agent) {
 			error(401, 'You must be logged in to accept an invite');
 		}

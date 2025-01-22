@@ -4,7 +4,7 @@ export const actions = {
 	default: async ({ request, locals }) => {
 		const data = await request.formData();
 		const handle = data.get('handle') as string;
-		const url = await locals.client.authorize(handle, {
+		const url = await locals.oauthClient.authorize(handle, {
 			scope: 'atproto transition:generic'
 		});
 

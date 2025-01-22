@@ -1,10 +1,12 @@
-import { Agent } from '@atproto/api';
-import { ids } from '$lib/lexicon/lexicons';
+import { Agent, lexicons as atpLexicons } from '@atproto/api';
+import { ids, lexicons as guildLexicons } from '$lib/lexicon/lexicons';
 import * as GuildRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guild';
 import * as GuildMemberClaimRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guildMemberClaim';
 import { TID } from '@atproto/common';
+import { XrpcClient } from '@atproto/xrpc';
 import type { Database, ExistingGuildInvite, Guild, GuildMember } from '$lib/server/db';
 import { type OutputSchema } from '@atproto/api/src/client/types/com/atproto/repo/getRecord';
+import type { BidirectionalResolver } from '$lib/server/id-resolver';
 
 async function create(agent: Agent, db: Database, guildName: string) {
 	const leaderDid = agent.assertDid;
@@ -105,25 +107,29 @@ async function create(agent: Agent, db: Database, guildName: string) {
 	return createdGuild;
 }
 
-async function GetPdsGuildsClaimedMemberOf(agent: Agent, guildUris: string[]) {
+async function GetClaimedGuildsFromPDS(
+	guildUris: string[],
+	resolver: BidirectionalResolver
+) {
 	const unvalidatedGuilds = [];
 	for (const uri of guildUris) {
 		const guildLeaderRepo = uri.split('/')[0];
 		const guildRkey = uri.split('/').at(-1)!;
 
-		// todo: how to fetch from multiple repos?
-		// rely on a firehose setup?
 		console.log('fetching guild...');
-		const requestQuery = {
-			repo: guildLeaderRepo,
-			collection: ids.DevJakestoutAtguildsGuild,
-			rkey: guildRkey
-		};
 		try {
-			const { data } = await agent.com.atproto.repo.getRecord(requestQuery);
+			// this XRPC client can get data from various PDS endpoints.
+			const endpoint = await resolver.resolvePDSEndpoint(guildLeaderRepo);
+			const xrpc = new XrpcClient(endpoint, [...guildLexicons, ...atpLexicons]);
+			const { data } = await xrpc.call('com.atproto.repo.getRecord', {
+				repo: guildLeaderRepo,
+				collection: ids.DevJakestoutAtguildsGuild,
+				rkey: guildRkey
+			});
 			unvalidatedGuilds.push(data);
-		} catch {
-			console.error(`failed to sync guild via: ${uri}`);
+		} catch (err) {
+			console.error(`failed to fetch guild via: ${uri}`);
+			console.error({ err });
 		}
 	}
 
@@ -134,6 +140,8 @@ async function GetPdsGuildsClaimedMemberOf(agent: Agent, guildUris: string[]) {
 			if (!validatedGuild) {
 				return null;
 			}
+
+			console.log(`got guild: ${validatedGuild.name}`);
 
 			return {
 				cid: record.cid,
@@ -167,7 +175,7 @@ async function GetPdsGuildMemberClaims(agent: Agent) {
 		.filter((record) => !!record);
 }
 
-async function syncLocals(agent: null | Agent, db: Database) {
+async function syncLocals(agent: Agent | null, db: Database, resolver: BidirectionalResolver) {
 	if (!agent) return;
 	const userDid = agent.assertDid;
 
@@ -177,17 +185,20 @@ async function syncLocals(agent: null | Agent, db: Database) {
 		.map((claim) => claim?.guildMemberClaim.guildUri.replace('at://', ''))
 		.filter((uri) => uri && uri.length > 0);
 
-	const pdsGuildsUserClaims = await GetPdsGuildsClaimedMemberOf(agent, guildUris);
+	const pdsGuildsUserClaims = await GetClaimedGuildsFromPDS(guildUris, resolver);
 
 	const indexedAt = new Date().toISOString();
 
 	// get existing db records
 	const dbGuildMembers = await getUserGuildMembers(userDid, db);
-	const dbGuilds = await getUserGuilds(userDid, db);
+	const pdsGuildURIs = pdsGuildsUserClaims.map((guild) => guild.uri);
+	const dbGuilds = await getExistingGuilds(pdsGuildURIs, db);
 
 	// add missing records to database
 	const guildsToAdd = pdsGuildsUserClaims.filter((record) => {
-		const existingLocal = dbGuilds.find((dbG) => dbG.uri == record.uri);
+		const existingLocal = dbGuilds.find((dbG) => {
+			return dbG.uri == record.uri;
+		});
 		return !existingLocal;
 	});
 
@@ -254,6 +265,10 @@ function getValidatedGuildMemberClaim(record: OutputSchema): GuildMemberClaimRec
 		console.warn('Invalid guild member claim found', { error });
 		return null;
 	}
+}
+
+async function getExistingGuilds(pdsGuildURIs: string[], db: Database): Promise<Guild[]> {
+	return await db.selectFrom('guild').where('uri', 'in', pdsGuildURIs).selectAll().execute();
 }
 
 async function getUserGuilds(userDid: string, db: Database): Promise<Guild[]> {

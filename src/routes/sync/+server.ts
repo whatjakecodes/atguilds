@@ -3,7 +3,7 @@ import guildService from '$lib/server/guildService';
 import { getAgent } from '$lib/server/agent';
 
 export const GET: RequestHandler = async ({ locals, cookies }) => {
-	const agent = await getAgent(cookies, locals.session, locals.client);
+	const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 	if (!agent) {
 		return new Response(JSON.stringify({ success: false }), {
 			headers: {
@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
 		});
 	}
 
-	await guildService.syncLocals(agent, locals.db);
+	await guildService.syncLocals(agent, locals.db, locals.resolver);
 	return new Response(JSON.stringify({ success: true }), {
 		headers: {
 			'content-type': 'application/json'

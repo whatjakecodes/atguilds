@@ -8,7 +8,7 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			client: NodeOAuthClient;
+			oauthClient: NodeOAuthClient;
 			session?: Session;
 			db: Database;
 			resolver: BidirectionalResolver

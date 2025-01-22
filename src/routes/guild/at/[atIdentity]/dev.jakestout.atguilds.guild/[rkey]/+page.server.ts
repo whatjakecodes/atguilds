@@ -5,7 +5,7 @@ import { error } from '@sveltejs/kit';
 export async function load({ params, locals, cookies }) {
 	const atIdentity = params.atIdentity;
 	const rkey = params.rkey;
-	const agent = await getAgent(cookies, locals.session, locals.client);
+	const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 	if (!agent) {
 		error(401, 'Must be logged in');
 	}
@@ -31,7 +31,7 @@ export async function load({ params, locals, cookies }) {
 
 export const actions = {
 	default: async ({ request, locals, cookies, params }) => {
-		const agent = await getAgent(cookies, locals.session, locals.client);
+		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 		if (!agent) {
 			return {
 				success: false,
