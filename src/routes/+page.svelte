@@ -9,6 +9,9 @@
 			console.error('Error syncing data:', error);
 		}
 	}
+
+	const memberOfGuilds = data.guilds ? data.guilds.filter(guild => guild.leaderDid !== data.profile.did) : [];
+	const leaderOfGuilds = data.guilds ? data.guilds.filter(guild => guild.leaderDid === data.profile.did) : [];
 </script>
 
 <svelte:head>
@@ -24,10 +27,19 @@
 	{#if data.profile}
 		<h1>Hi, <span>{data.profile.displayName}</span></h1>
 
-		{#if data.guilds}
-			<span>In guilds: </span>
+		{#if leaderOfGuilds.length > 0}
+			<span>Leader of: </span>
 			<ul>
-				{#each data.guilds as g}
+				{#each leaderOfGuilds as g}
+					<li><a href="/guild/{g.uri.replace('at://', 'at/')}">{g.name}</a></li>
+				{/each}
+			</ul>
+		{/if}
+
+		{#if memberOfGuilds.length > 0}
+			<span>Member of: </span>
+			<ul>
+				{#each memberOfGuilds as g}
 					<li><a href="/guild/{g.uri.replace('at://', 'at/')}">{g.name}</a></li>
 				{/each}
 			</ul>
