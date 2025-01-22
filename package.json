@@ -44,6 +44,7 @@
 		"@atproto/identity": "^0.4.5",
 		"@atproto/lexicon": "^0.4.5",
 		"@atproto/oauth-client-node": "^0.2.6",
+		"@atproto/xrpc": "^0.6.6",
 		"@atproto/xrpc-server": "^0.7.7",
 		"@neondatabase/serverless": "^0.10.4",
 		"@vercel/analytics": "^1.4.1",

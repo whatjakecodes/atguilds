@@ -1,10 +1,12 @@
-import { Agent } from '@atproto/api';
-import { ids } from '$lib/lexicon/lexicons';
+import { Agent, lexicons } from '@atproto/api';
+import { ids, lexicons as guildLexicons } from '$lib/lexicon/lexicons';
 import * as GuildRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guild';
 import * as GuildMemberClaimRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guildMemberClaim';
 import { TID } from '@atproto/common';
+import { XrpcClient } from '@atproto/xrpc';
 import type { Database, ExistingGuildInvite, Guild, GuildMember } from '$lib/server/db';
 import { type OutputSchema } from '@atproto/api/src/client/types/com/atproto/repo/getRecord';
+import type { BidirectionalResolver } from '$lib/server/id-resolver';
 
 async function create(agent: Agent, db: Database, guildName: string) {
 	const leaderDid = agent.assertDid;
@@ -105,14 +107,15 @@ async function create(agent: Agent, db: Database, guildName: string) {
 	return createdGuild;
 }
 
-async function GetPdsGuildsClaimedMemberOf(agent: Agent, guildUris: string[]) {
+async function GetPdsGuildsClaimedMemberOf(
+	agent: Agent,
+	guildUris: string[]
+) {
 	const unvalidatedGuilds = [];
 	for (const uri of guildUris) {
 		const guildLeaderRepo = uri.split('/')[0];
 		const guildRkey = uri.split('/').at(-1)!;
 
-		// todo: how to fetch from multiple repos?
-		// rely on a firehose setup?
 		console.log('fetching guild...');
 		const requestQuery = {
 			repo: guildLeaderRepo,
@@ -120,10 +123,14 @@ async function GetPdsGuildsClaimedMemberOf(agent: Agent, guildUris: string[]) {
 			rkey: guildRkey
 		};
 		try {
-			const { data } = await agent.com.atproto.repo.getRecord(requestQuery);
+			// this XRPC client can get data from various PDS endpoints.
+			const endpoint = await fetchPDSEndpoint(guildLeaderRepo);
+			const xrpc = new XrpcClient(endpoint, [...guildLexicons, ...lexicons]);
+			const { data } = await xrpc.call('com.atproto.repo.getRecord', requestQuery);
 			unvalidatedGuilds.push(data);
-		} catch {
+		} catch (err) {
 			console.error(`failed to sync guild via: ${uri}`);
+			console.error({ err });
 		}
 	}
 
@@ -142,6 +149,37 @@ async function GetPdsGuildsClaimedMemberOf(agent: Agent, guildUris: string[]) {
 			};
 		})
 		.filter((record) => !!record);
+}
+
+async function fetchPDSEndpoint(did: string) {
+	try {
+		if (!did.startsWith('did:plc:')) {
+			throw new Error('Invalid DID format. Must start with "did:plc:"');
+		}
+
+		// Make the HTTP request to the DID directory
+		const response = await fetch(`https://plc.directory/${did}`);
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+
+		const data = await response.json();
+
+		// Find the service with type AtprotoPersonalDataServer
+		const pdsService = data.service?.find(
+			(service) => service.type === 'AtprotoPersonalDataServer'
+		);
+
+		if (!pdsService || !pdsService.serviceEndpoint) {
+			throw new Error('PDS endpoint not found in DID document');
+		}
+
+		return pdsService.serviceEndpoint;
+	} catch (error) {
+		// Enhance error message with context
+		throw new Error(`Failed to fetch PDS endpoint: ${error.message}`);
+	}
 }
 
 async function GetPdsGuildMemberClaims(agent: Agent) {
@@ -167,7 +205,7 @@ async function GetPdsGuildMemberClaims(agent: Agent) {
 		.filter((record) => !!record);
 }
 
-async function syncLocals(agent: null | Agent, db: Database) {
+async function syncLocals(agent: Agent | null, db: Database, resolver: BidirectionalResolver) {
 	if (!agent) return;
 	const userDid = agent.assertDid;
 
