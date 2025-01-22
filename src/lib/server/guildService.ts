@@ -217,8 +217,8 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 				cid: record.cid!,
 				name: record.guild.name,
 				createdAt: record.guild.createdAt,
-				creatorDid: userDid,
-				leaderDid: userDid,
+				creatorDid: record.guild.leader,
+				leaderDid: record.guild.leader,
 				indexedAt: indexedAt
 			}));
 			console.log({ guildsToInsert });
