@@ -434,11 +434,10 @@ async function inviteMember(
 	});
 
 	if (memberClaims.success) {
-		const existingClaim = memberClaims.data.records
-			.find((record) => {
-				const claim = getValidatedGuildMemberClaim(record);
-				return claim !== null && claim.guildUri === guildUri;
-			});
+		const existingClaim = memberClaims.data.records.find((record) => {
+			const claim = getValidatedGuildMemberClaim(record);
+			return claim !== null && claim.guildUri === guildUri;
+		});
 
 		if (existingClaim) {
 			// no need to invite; member has MemberClaim to the guild already
@@ -652,9 +651,57 @@ async function removeMember(
 		.execute();
 }
 
-// async function deleteGuild(guildUri: string, db: Database, agent: Agent) {
-// 	console.log(`delete ${guildUri}`);
-// }
+async function deleteGuild(leaderDid: string, rkey: string, db: Database, agent: Agent) {
+	const guild = await getGuild(leaderDid, rkey, db);
+	if (!guild) {
+		throw new Error('Guild does not exist');
+	}
+
+	if (guild.leaderDid !== agent.assertDid) {
+		throw new Error('Only leader can delete guild');
+	}
+
+	const atUri = new AtUri(guild.uri);
+
+	const guildLeader = await db
+		.selectFrom('guild_member')
+		.where((eb) => eb.and([eb('guildUri', '=', guild.uri), eb('memberDid', '=', agent.assertDid)]))
+		.select('uri')
+		.executeTakeFirstOrThrow();
+
+	const leaderClaimRkey = new AtUri(guildLeader.uri).rkey;
+
+	const response = await agent.com.atproto.repo.applyWrites({
+		repo: agent.assertDid,
+		writes: [
+			{
+				$type: 'com.atproto.repo.applyWrites#delete',
+				collection: ids.DevJakestoutAtguildsGuild,
+				rkey: atUri.rkey
+			},
+			{
+				$type: 'com.atproto.repo.applyWrites#delete',
+				collection: ids.DevJakestoutAtguildsGuildMemberClaim,
+				rkey: leaderClaimRkey
+			}
+		]
+	});
+
+	if (!response.success) {
+		console.error({ response });
+		throw new Error('failed to delete guild on PDS');
+	}
+
+	const userDid = agent.assertDid;
+	const result = await db
+		.deleteFrom('guild')
+		.where((eb) => eb.and([eb('leaderDid', '=', userDid), eb('uri', '=', guild.uri)]))
+		.executeTakeFirst();
+
+	if (result.numDeletedRows < 1) {
+		throw new Error('failed to delete guild on db cache');
+	}
+}
 
 const guildService = {
 	create,
@@ -666,8 +713,8 @@ const guildService = {
 	inviteHandle: inviteMember,
 	getUserInvites,
 	acceptInvite,
-	removeMember
-	// deleteGuild
+	removeMember,
+	deleteGuild
 };
 
 export default guildService;

@@ -159,6 +159,24 @@ migrations['003'] = {
 	}
 };
 
+migrations['004'] = {
+	async up(db: Kysely<DatabaseSchema>) {
+		await db
+			.deleteFrom('guild_invite')
+			.where('guildUri', 'not in', db.selectFrom('guild').select('uri').distinct())
+			.execute();
+
+		await db.schema
+			.alterTable('guild_invite')
+			.addForeignKeyConstraint('fk_guild_invite_to_guild', ['guildUri'], 'guild', ['uri'])
+			.onDelete('cascade')
+			.execute();
+	},
+	async down(db: Kysely<unknown>) {
+		await db.schema.alterTable('guild_invite').dropConstraint('fk_guild_invite_to_guild').execute();
+	}
+};
+
 if (!process.env.VERCEL_ENV) {
 	// from https://gal.hagever.com/posts/running-vercel-postgres-locally
 	console.log('VERCEL_ENV not found. Setting up local websocket proxy.');

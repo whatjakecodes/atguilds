@@ -1,6 +1,6 @@
 import { getAgent } from '$lib/server/agent';
 import guildService from '$lib/server/guildService';
-import { type Actions, error } from '@sveltejs/kit';
+import { type Actions, error, redirect } from '@sveltejs/kit';
 
 export async function load({ params, locals, cookies }) {
 	const atIdentity = params.atIdentity;
@@ -63,7 +63,7 @@ export const actions = {
 		const inviteeHandle = data.get('memberHandle') as string;
 		const didResponse = await agent.com.atproto.identity.resolveHandle({ handle: inviteeHandle });
 		const inviteeDid = didResponse.data.did;
-		console.log({ inviteeHandle, inviteeDid });
+
 		if (inviteeDid.length < 1) {
 			console.error('failed to lookup inviteeDid for ', inviteeHandle);
 			return { success: false };
@@ -100,12 +100,26 @@ export const actions = {
 		}
 
 		if (!params.atIdentity || !params.rkey) {
-			throw Error('must include leader did and guild rkey')
+			throw Error('must include leader did and guild rkey');
 		}
 
 		await guildService.removeMember(memberDid, params.atIdentity, params.rkey, locals.db, agent);
 	},
-	deleteGuild: async () => {
-		console.log('todo: delete guild');
+	deleteGuild: async ({ locals, params, cookies }) => {
+		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
+		if (!agent) {
+			return {
+				success: false,
+				error: 'You must be logged in to delete a guild'
+			};
+		}
+
+		if (!params.atIdentity || !params.rkey) {
+			throw Error('must include leader did and guild rkey');
+		}
+
+		await guildService.deleteGuild(params.atIdentity, params.rkey, locals.db, agent);
+
+		throw redirect(303, `/`);
 	}
 } satisfies Actions;
