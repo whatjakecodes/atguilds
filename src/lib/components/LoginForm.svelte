@@ -2,9 +2,9 @@
 	let error = '';
 </script>
 
-<form method="POST" action="/login" class="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
+<form method="POST" action="/login?/login" class="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4">
 	<div class="text-center mb-8">
-		<p class="text-gray-600">Login to the Atmosphere.</p>
+		<p class="text-gray-600">Login to the Atmosphere to see & create your guilds.</p>
 	</div>
 	<div class="mb-6">
 		<input

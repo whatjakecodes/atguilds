@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import github from '$lib/images/github.svg';
+
+	const { showLogout } = $props();
 </script>
 
 <header class="flex justify-between">
@@ -22,13 +24,16 @@
 					About
 				</a>
 			</li>
-			<li class="relative h-full" aria-current={page.url.pathname === '/login' ? 'page' : undefined}>
-				<a href="/login"
-					 class={`flex items-center h-full px-2 font-bold text-sm uppercase tracking-wider transition-colors
-           ${page.url.pathname === '/login' ? 'text-blue-500' : 'hover:text-blue-400'}`}>
-					Login
-				</a>
-			</li>
+			{#if showLogout}
+				<li class="relative h-full">
+					<form method="POST" action="/login?/logout" class="flex h-full">
+						<button type="submit"
+										class="flex items-center h-full px-2 font-bold text-sm uppercase tracking-wider transition-colors">
+							Logout
+						</button>
+					</form>
+				</li>
+			{/if}
 		</ul>
 	</nav>
 
