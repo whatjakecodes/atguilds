@@ -148,6 +148,35 @@ async function GetClaimedGuildsFromPDS(guildUris: AtUri[], resolver: Bidirection
 		.filter((record) => !!record);
 }
 
+async function getGuildsByLeaderFromPDS(agent: Agent) {
+	const response = await agent.com.atproto.repo.listRecords({
+		repo: agent.assertDid,
+		collection: ids.DevJakestoutAtguildsGuild
+	});
+
+	if (!response.success) {
+		throw Error('failed to fetch guilds user is leader of');
+	}
+
+	return response.data.records
+		.map((record) => {
+			const validatedGuild = getValidatedGuild(record);
+
+			if (!validatedGuild) {
+				return null;
+			}
+
+			console.log(`got PDS guild by leader: ${validatedGuild.name}`);
+
+			return {
+				cid: record.cid,
+				uri: record.uri,
+				guild: validatedGuild as GuildRecord.Record
+			};
+		})
+		.filter((record) => !!record);
+}
+
 async function GetOtherMemberClaimsFromPDS(
 	guildMembers: string[],
 	userGuildUris: AtUri[],
@@ -294,6 +323,16 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 			await trx.insertInto('guild_member').values(membersToInsert).execute();
 		}
 	});
+
+	// delete cached guilds user is leader of, that are not in their PDS anymore
+	const pdsGuildsUserLeads = await getGuildsByLeaderFromPDS(agent);
+	const guildsILeadURIs = pdsGuildsUserLeads.map((g) => g?.uri).filter((uri) => !!uri);
+	const deleteResult = await db
+		.deleteFrom('guild')
+		.where((eb) => eb.and([eb('leaderDid', '=', userDid), eb('uri', 'not in', guildsILeadURIs)]))
+		.executeTakeFirst();
+
+	console.log(`deleted ${deleteResult.numDeletedRows} guilds during sync`);
 }
 
 function getValidatedGuild(record: OutputSchema): GuildRecord.Record | null {
