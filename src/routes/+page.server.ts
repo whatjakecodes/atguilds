@@ -37,19 +37,9 @@ export const actions = {
 		const data = await request.formData();
 		const guildName = data.get('guildName') as string;
 
-		try {
-			const created = await guildService.create(agent, locals.db, guildName);
-			return {
-				success: true,
-				guild: created
-			};
-		} catch (err) {
-			console.error({ err }, 'create guild failed');
-			return {
-				success: false,
-				error: (err as Error).message
-			};
-		}
+		const created = await guildService.create(agent, locals.db, guildName);
+
+		throw redirect(303, `/guild/${created.uri.replace('at://', 'at/')}`);
 	},
 
 	acceptInvite: async ({ request, locals, cookies }) => {
@@ -66,7 +56,7 @@ export const actions = {
 		try {
 			const result = await guildService.acceptInvite(parseInt(inviteId), handle, locals.db, agent);
 			if (!result) {
-				throw new Error("failed to accept invite")
+				throw new Error('failed to accept invite');
 			}
 			guildUri = result.uri.replace('at://', 'at/');
 		} catch (err) {
