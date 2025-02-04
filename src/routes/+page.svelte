@@ -23,7 +23,18 @@
 
 <div class="container mx-auto px-4 py-8">
 	{#if data.profile}
-		<h2 class="text-xl font-semibold mb-8">Hi, <span class="text-blue-600">{data.profile.displayName}</span></h2>
+		<h2 class="text-xl font-semibold mb-8">Hi, <span class="text-gray-600">{data.profile.displayName}</span>
+			<form method="POST" action="/login?/logout" class="">
+				<button
+					type="submit"
+					class="text-sm text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-sm"
+					aria-label="Logout from your account"
+				>
+					Logout
+				</button>
+			</form>
+		</h2>
+
 		<div class="flex flex-col md:flex-row gap-8">
 			<!-- Left Column - Guild Lists -->
 			<div class="w-full md:w-1/2 space-y-6">
