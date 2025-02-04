@@ -1,4 +1,6 @@
 <script lang="ts">
+	import LoginForm from '$lib/components/LoginForm.svelte';
+
 	const { data } = $props();
 
 	async function handleSyncClick() {
@@ -114,6 +116,10 @@
 					</form>
 				</div>
 			</div>
+		</div>
+	{:else}
+		<div class="w-full sm:w-1/2 mx-auto">
+			<LoginForm />
 		</div>
 	{/if}
 </div>
