@@ -8,7 +8,7 @@ Portable guilds built on ATProtocol! Create a guild and invite your friends.
 > Once mature, this project and its lexicons should be hosted outside the `dev.jakestout.atguilds` domain/namespace.
 > 
 > Goals:
-> * develop a weekly leaderboard system to rank guild member activities.
+> * develop a weekly leaderboard system to rank guild member activities
 > * develop SDKs for unity/unreal/godot to authenticate users and enable guild access in-game
 > 
 > Please reach out if you're interested in collaborating on this!
