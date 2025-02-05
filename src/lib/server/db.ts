@@ -3,11 +3,12 @@ import {
 	Kysely,
 	type Migration,
 	type MigrationProvider,
-	Migrator
+	Migrator,
+	PostgresDialect
 } from 'kysely';
+import pg from 'pg';
 
-import { NeonDialect } from 'kysely-neon';
-import { neonConfig } from '@neondatabase/serverless';
+const { Pool } = pg;
 
 // Types
 export type DatabaseSchema = {
@@ -177,23 +178,32 @@ migrations['004'] = {
 	}
 };
 
-if (!process.env.VERCEL_ENV) {
-	// from https://gal.hagever.com/posts/running-vercel-postgres-locally
-	console.log('VERCEL_ENV not found. Setting up local websocket proxy.');
-	// Set the WebSocket proxy to work with the local instance
-	neonConfig.wsProxy = (host) => `${host}:5433/v1`;
-	// Disable all authentication and encryption
-	neonConfig.useSecureWebSocket = false;
-	neonConfig.pipelineTLS = false;
-	neonConfig.pipelineConnect = false;
-}
-
 // APIs
 export const createDb = (location: string): Database => {
 	console.log(`createDB with location: ${location}`);
+	const pool = new Pool({
+		connectionString: location,
+		min: 0,
+		max: 3,
+		idleTimeoutMillis: 60_000,
+		connectionTimeoutMillis: 5_000
+	});
+
+	pool.on('connect', () => {
+		console.log('New client connected to pool');
+	});
+
+	pool.on('acquire', () => {
+		console.log('Client acquired from pool');
+	});
+
+	pool.on('remove', () => {
+		console.log('Client removed from pool');
+	});
+
 	return new Kysely<DatabaseSchema>({
-		dialect: new NeonDialect({
-			connectionString: location
+		dialect: new PostgresDialect({
+			pool
 		})
 	});
 };

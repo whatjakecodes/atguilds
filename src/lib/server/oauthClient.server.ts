@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/public';
-import { PORT } from '$env/static/private';
+import { env as privEnv } from '$env/dynamic/private';
 import { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { SessionStore, StateStore } from './storage';
 import type { Database } from '$lib/server/db';
@@ -11,7 +11,7 @@ export const createClient = async (db: Database) => {
 	if (env.PUBLIC_OAUTH_REDIRECT_URL) {
 		console.log(`Using PUBLIC_OAUTH_REDIRECT_URL for oauth redirect: ${publicUrl}`);
 	}
-	const url = publicUrl || `http://127.0.0.1:${PORT}`;
+	const url = publicUrl || `http://127.0.0.1:${privEnv.PORT}`;
 	const clientId = publicUrl
 		? `${url}/client-metadata.json`
 		: `http://localhost?redirect_uri=${enc(`${url}/oauth/callback`)}&scope=${enc('atproto transition:generic')}`;
