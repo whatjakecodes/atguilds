@@ -17,8 +17,8 @@
 </script>
 
 <svelte:head>
-	<title>Home</title>
-	<meta name="description" content="Portable ATProtocol Guilds" />
+	<title>ATGuilds</title>
+	<meta name="description" content="Portable guilds on ATProtocol" />
 </svelte:head>
 
 <div class="container mx-auto px-4 py-8">
