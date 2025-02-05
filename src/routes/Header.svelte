@@ -13,5 +13,7 @@
 	</div>
 </header>
 
-<h1 class="text-3xl font-bold mb-1 text-center mt-5">ATGuilds</h1>
+<h1 class="text-3xl font-bold mb-1 text-center mt-5">
+	<a href="/" class="no-underline">ATGuilds</a>
+</h1>
 <p class="text-lg text-center">Guild system for ATProtocol. Create a guild and invite your friends!</p>
