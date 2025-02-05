@@ -19,7 +19,8 @@ Guilds are created in the guild leader's PDS, and represented by [guild.atguilds
 
 Guild membership is represented by "claim" records ([guildMemberClaim.atguilds.jakestout.dev](./lexicons/guildMemberClaim.json)) on each member's PDS.
 
-Bi-directional validity: memberships should only be considered "valid" if both are true:
+### Bi-directional validity
+Memberships should only be considered "valid" if both are true:
 1. A guild record's `members` array contains the decentralized ID (DID) of an ATProto account
 2. That ATProto account contains a guildMemberClaim record with the `guildUri` set to the ATUri of that guild.
 
