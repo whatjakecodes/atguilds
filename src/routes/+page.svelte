@@ -129,7 +129,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="w-full sm:w-1/2 mx-auto">
+		<div class="w-full lg:w-1/3 md:w-1/2 mx-auto">
 			<LoginForm />
 		</div>
 	{/if}
