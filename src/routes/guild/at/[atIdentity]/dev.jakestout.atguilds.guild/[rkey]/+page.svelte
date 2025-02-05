@@ -1,6 +1,6 @@
 <script lang="ts">
 	const { data } = $props();
-	const { profile, guild, guildMembers, didHandleMap, invites } = data;
+	const { profile, guild, guildMembers, didHandleMap, didDisplayNameMap, invites } = data;
 	const isLeader = guild.leaderDid === profile.did;
 
 	function isMember(did: string) {
@@ -17,15 +17,19 @@
 			<div class="bg-white rounded-lg shadow-lg p-6">
 				<div class="mb-6">
 					<h2 class="text-xl font-semibold mb-2">Leader</h2>
-					<p class="text-gray-700">{didHandleMap[guild.leaderDid]}</p>
+					<p class="text-gray-700">{didDisplayNameMap[guild.leaderDid]} (<a
+						href="https://bsky.app/profile/{didHandleMap[guild.leaderDid]}" target="_blank"
+						rel="noopener noreferrer">{didHandleMap[guild.leaderDid]}</a>)</p>
 				</div>
 
 				<div class="mb-6">
 					<h2 class="text-xl font-semibold mb-4">Members</h2>
 					<ul class="space-y-3">
-						{#each guildMembers as member}
+						{#each guildMembers.filter(m => m.memberDid !== guild.leaderDid) as member}
 							<li class="flex items-center justify-between">
-								<span class="text-gray-700">{didHandleMap[member.memberDid]}</span>
+								<span class="text-gray-700">{didDisplayNameMap[member.memberDid]} (<a
+									href="https://bsky.app/profile/{didHandleMap[member.memberDid]}" target="_blank"
+									rel="noopener noreferrer">{didHandleMap[member.memberDid]}</a>)</span>
 								{#if isLeader && isMember(member.memberDid)}
 									<form method="POST" action="?/removeMember" class="inline">
 										<input type="hidden" id="memberDid" name="memberDid" value={member.memberDid} />

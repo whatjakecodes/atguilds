@@ -22,6 +22,12 @@ export async function load({ params, locals, cookies }) {
 		guildMembers.map((m) => m.memberDid)
 	);
 
+	const didDisplayNameMap: { [key: string]: string } = {};
+	for (const member of guildMembers) {
+		const profile = await agent.getProfile({ actor: member.memberDid });
+		didDisplayNameMap[member.memberDid] = profile.data.displayName!;
+	}
+
 	const response = await agent.getProfile({
 		actor: agent.assertDid
 	});
@@ -30,7 +36,8 @@ export async function load({ params, locals, cookies }) {
 		guildMembers,
 		invites,
 		profile: response.data,
-		didHandleMap
+		didHandleMap,
+		didDisplayNameMap
 	};
 }
 
