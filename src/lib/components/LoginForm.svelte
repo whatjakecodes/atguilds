@@ -7,10 +7,14 @@
 		<p class="text-gray-600">Login to the Atmosphere to see & create your guilds.</p>
 	</div>
 	<div class="mb-6">
+		<label for="handle" class="block text-sm font-medium text-gray-700 mb-1">
+			Enter your handle:
+		</label>
 		<input
 			type="text"
+			id="handle"
 			name="handle"
-			placeholder="Enter your handle (eg alice.bsky.social)"
+			placeholder="e.g. alice.bsky.social"
 			required
 			class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors placeholder-gray-400"
 		/>
