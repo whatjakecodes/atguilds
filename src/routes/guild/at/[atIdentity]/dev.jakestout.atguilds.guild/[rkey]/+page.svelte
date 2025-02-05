@@ -9,7 +9,10 @@
 </script>
 
 <div class="container mx-auto px-4 py-8">
-	<h1 class="text-3xl font-bold text-gray-900 mb-8">{guild.name}</h1>
+	<a href="/"
+		 class="mb-1 no-underline block w-fit text-sm text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-sm"
+	>{'<'} Back</a>
+	<h1 class="text-3xl font-bold text-gray-900 mb-7">{guild.name}</h1>
 
 	<div class="flex flex-col md:flex-row gap-8">
 		<!-- Left Column - Members List -->
