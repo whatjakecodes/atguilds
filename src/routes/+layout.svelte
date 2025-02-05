@@ -2,11 +2,11 @@
 	import Header from './Header.svelte';
 	import '../app.css';
 
-	let { children, data } = $props();
+	let { children } = $props();
 </script>
 
 <div class="app bg-blue-100 min-h-screen">
-	<Header showLogout={data.isLoggedIn} />
+	<Header />
 
 	<main>
 		{@render children()}
