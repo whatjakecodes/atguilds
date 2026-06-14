@@ -1,8 +1,9 @@
 import guildService from '$lib/server/guildService';
 import { getAgent } from '$lib/server/agent';
+import type { Actions, ServerLoad } from '@sveltejs/kit';
 import { error, redirect } from '@sveltejs/kit';
 
-export async function load({ locals, cookies }) {
+export const load: ServerLoad = async ({ locals, cookies }) => {
 	const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 
 	if (!agent) {
@@ -25,7 +26,7 @@ export async function load({ locals, cookies }) {
 		guilds,
 		invites: invites
 	};
-}
+};
 
 export const actions = {
 	createGuild: async ({ request, locals, cookies }) => {
@@ -38,6 +39,10 @@ export const actions = {
 		const guildName = data.get('guildName') as string;
 
 		const created = await guildService.create(agent, locals.db, guildName);
+
+		if (!created) {
+			error(500, 'Failed to create guild.');
+		}
 
 		throw redirect(303, `/guild/${created.uri.replace('at://', 'at/')}`);
 	},
@@ -56,7 +61,7 @@ export const actions = {
 		try {
 			const result = await guildService.acceptInvite(parseInt(inviteId), handle, locals.db, agent);
 			if (!result) {
-				throw new Error('failed to accept invite');
+				error(500, 'failed to accept invite');
 			}
 			guildUri = result.uri.replace('at://', 'at/');
 		} catch (err) {
@@ -68,4 +73,4 @@ export const actions = {
 		}
 		throw redirect(303, `/guild/${guildUri}`);
 	}
-};
+} satisfies Actions;

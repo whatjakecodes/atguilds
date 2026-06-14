@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 
-export const actions: Actions = {
+export const actions = {
 	login: async ({ request, locals }) => {
 		const data = await request.formData();
 		const handle = data.get('handle') as string;
@@ -25,4 +25,4 @@ export const actions: Actions = {
 
 		throw redirect(303, '/');
 	}
-};
+} satisfies Actions;

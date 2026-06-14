@@ -1,10 +1,15 @@
 import { getAgent } from '$lib/server/agent';
 import guildService from '$lib/server/guildService';
-import { type Actions, error, redirect } from '@sveltejs/kit';
+import type { Actions, ServerLoad } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 
-export async function load({ params, locals, cookies }) {
+export const load: ServerLoad = async ({ params, locals, cookies }) => {
 	const atIdentity = params.atIdentity;
 	const rkey = params.rkey;
+	if (!atIdentity || !rkey) {
+		error(400, 'Invalid path. Missing params.');
+	}
+
 	const agent = await getAgent(cookies, locals.session, locals.oauthClient);
 	if (!agent) {
 		error(401, 'Must be logged in');
@@ -39,7 +44,7 @@ export async function load({ params, locals, cookies }) {
 		didHandleMap,
 		didDisplayNameMap
 	};
-}
+};
 
 export const actions = {
 	inviteMember: async ({ request, locals, cookies, params }) => {
