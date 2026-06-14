@@ -9,7 +9,8 @@ import type { BidirectionalResolver } from '$lib/server/id-resolver';
 
 async function create(agent: Agent, db: Database, guildName: string) {
 	const leaderDid = agent.assertDid;
-	const inputGuild = {
+	const inputGuild: GuildRecord.Record = {
+		$type: ids.DevJakestoutAtguildsGuild,
 		name: guildName,
 		leader: leaderDid,
 		members: [leaderDid],
@@ -23,7 +24,8 @@ async function create(agent: Agent, db: Database, guildName: string) {
 	}
 	const guildRkey = TID.nextStr();
 
-	const inputGuildMemberClaim = {
+	const inputGuildMemberClaim: GuildMemberClaimRecord.Record = {
+		$type: ids.DevJakestoutAtguildsGuildMemberClaim,
 		guildUri: getGuildUri(leaderDid, guildRkey),
 		createdAt: new Date().toISOString()
 	};
@@ -75,7 +77,7 @@ async function create(agent: Agent, db: Database, guildName: string) {
 	const guildCid = createGuildResult.cid;
 	const guildMemberUri = createGuildMemberClaimResult.uri;
 
-	const createdGuild = {
+	const createdGuild: GuildRecord.Record = {
 		...guildRecord,
 		uri: guildUri,
 		cid: guildCid
@@ -587,7 +589,8 @@ async function acceptInvite(inviteId: number, handle: string, db: Database, agen
 	console.log('joining guild:');
 	console.log({ guild });
 
-	const inputGuildMemberClaim = {
+	const inputGuildMemberClaim: GuildMemberClaimRecord.Record = {
+		$type: ids.DevJakestoutAtguildsGuildMemberClaim,
 		guildUri: guild.uri,
 		createdAt: new Date().toISOString()
 	};
