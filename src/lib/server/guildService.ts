@@ -1,10 +1,10 @@
+import type { ComAtprotoRepoApplyWrites, ComAtprotoRepoGetRecord } from '@atproto/api';
 import { Agent, AtpAgent, AtUri } from '@atproto/api';
 import { ids } from '$lib/lexicon/lexicons';
 import * as GuildRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guild';
 import * as GuildMemberClaimRecord from '$lib/lexicon/types/dev/jakestout/atguilds/guildMemberClaim';
 import { TID } from '@atproto/common';
 import type { Database, ExistingGuildInvite, Guild, GuildMember } from '$lib/server/db';
-import { type OutputSchema } from '@atproto/api/src/client/types/com/atproto/repo/getRecord';
 import type { BidirectionalResolver } from '$lib/server/id-resolver';
 
 async function create(agent: Agent, db: Database, guildName: string) {
@@ -64,9 +64,16 @@ async function create(agent: Agent, db: Database, guildName: string) {
 
 	const createGuildResult = response.data.results[0];
 	const createGuildMemberClaimResult = response.data.results[1];
-	const guildUri = createGuildResult.uri as string;
-	const guildCid = createGuildResult.cid as string;
-	const guildMemberUri = createGuildMemberClaimResult.uri as string;
+	if (
+		!isCreateWriteResult(createGuildResult) ||
+		!isCreateWriteResult(createGuildMemberClaimResult)
+	) {
+		console.error('applyWrites did not return expected create results');
+		return null;
+	}
+	const guildUri = createGuildResult.uri;
+	const guildCid = createGuildResult.cid;
+	const guildMemberUri = createGuildMemberClaimResult.uri;
 
 	const createdGuild = {
 		...guildRecord,
@@ -335,7 +342,9 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 	console.log(`deleted ${deleteResult.numDeletedRows} guilds during sync`);
 }
 
-function getValidatedGuild(record: OutputSchema): GuildRecord.Record | null {
+function getValidatedGuild(
+	record: ComAtprotoRepoGetRecord.OutputSchema
+): GuildRecord.Record | null {
 	const isGuild = GuildRecord.isRecord(record.value);
 	if (!isGuild) return null;
 	const validation = GuildRecord.validateRecord(record.value);
@@ -348,7 +357,9 @@ function getValidatedGuild(record: OutputSchema): GuildRecord.Record | null {
 	}
 }
 
-function getValidatedGuildMemberClaim(record: OutputSchema): GuildMemberClaimRecord.Record | null {
+function getValidatedGuildMemberClaim(
+	record: ComAtprotoRepoGetRecord.OutputSchema
+): GuildMemberClaimRecord.Record | null {
 	const isGuildMemberClaim = GuildMemberClaimRecord.isRecord(record.value);
 	if (!isGuildMemberClaim) return null;
 	const validation = GuildMemberClaimRecord.validateRecord(record.value);
@@ -617,7 +628,12 @@ async function acceptInvite(inviteId: number, handle: string, db: Database, agen
 		return null;
 	}
 
-	const guildMemberUri = response.data.results[0].uri as string;
+	const acceptResult = response.data.results[0];
+	if (!isCreateWriteResult(acceptResult)) {
+		console.error('applyWrites did not return expected create result for guild member claim');
+		return null;
+	}
+	const guildMemberUri = acceptResult.uri;
 
 	await db
 		.insertInto('guild_member')
@@ -740,6 +756,13 @@ async function deleteGuild(leaderDid: string, rkey: string, db: Database, agent:
 	if (result.numDeletedRows < 1) {
 		throw new Error('failed to delete guild on db cache');
 	}
+}
+
+type ApplyWriteResult = NonNullable<ComAtprotoRepoApplyWrites.OutputSchema['results']>[number];
+function isCreateWriteResult(
+	result: ApplyWriteResult
+): result is ComAtprotoRepoApplyWrites.CreateResult & { $type: string } {
+	return 'uri' in result;
 }
 
 const guildService = {

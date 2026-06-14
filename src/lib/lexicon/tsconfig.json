@@ -1,7 +1,9 @@
 {
-  "compilerOptions": {
-    "verbatimModuleSyntax": false,
-    "noUnusedLocals": false,
-    "composite": true
-  }
+	"compilerOptions": {
+		"verbatimModuleSyntax": false,
+		"noUnusedLocals": false,
+		"composite": true,
+		"moduleResolution": "bundler",
+		"lib": ["ES2017"]
+	}
 }

@@ -3,6 +3,7 @@ import { createDb, migrateToLatest } from '$lib/server/db';
 import { DATABASE_URL } from '$env/static/private';
 import { building } from '$app/environment';
 import { createBidirectionalResolver, createIdResolver } from '$lib/server/id-resolver';
+import type { Handle } from '@sveltejs/kit';
 
 if (!DATABASE_URL) {
 	throw new Error('DATABASE_URL is not set.');
@@ -11,7 +12,7 @@ if (!DATABASE_URL) {
 const db = createDb(DATABASE_URL);
 await migrateToLatest(db);
 
-export async function handle({ event, resolve }) {
+export const handle: Handle = async ({ event, resolve }) => {
 	if (!building) {
 		// skip oauth client setup during build-time pre-rendering
 		const client = await createClient(db!);
@@ -25,4 +26,4 @@ export async function handle({ event, resolve }) {
 	}
 
 	return await resolve(event);
-}
+};

@@ -1,12 +1,21 @@
 /**
  * GENERATED CODE - DO NOT MODIFY
  */
-import { ValidationResult, BlobRef } from '@atproto/lexicon'
-import { lexicons } from '../../../../lexicons'
-import { isObj, hasProp } from '../../../../util'
+import { type ValidationResult, BlobRef } from '@atproto/lexicon'
 import { CID } from 'multiformats/cid'
+import { validate as _validate } from '../../../../lexicons.js'
+import {
+  type $Typed,
+  is$typed as _is$typed,
+  type OmitKey,
+} from '../../../../util.js'
 
-export interface Record {
+const is$typed = _is$typed,
+  validate = _validate
+const id = 'dev.jakestout.atguilds.guild'
+
+export interface Main {
+  $type: 'dev.jakestout.atguilds.guild'
   /** The name of the guild */
   name: string
   /** DID for the leader of the guild */
@@ -17,15 +26,18 @@ export interface Record {
   [k: string]: unknown
 }
 
-export function isRecord(v: unknown): v is Record {
-  return (
-    isObj(v) &&
-    hasProp(v, '$type') &&
-    (v.$type === 'dev.jakestout.atguilds.guild#main' ||
-      v.$type === 'dev.jakestout.atguilds.guild')
-  )
+const hashMain = 'main'
+
+export function isMain<V>(v: V) {
+  return is$typed(v, id, hashMain)
 }
 
-export function validateRecord(v: unknown): ValidationResult {
-  return lexicons.validate('dev.jakestout.atguilds.guild#main', v)
+export function validateMain<V>(v: V) {
+  return validate<Main & V>(v, id, hashMain, true)
+}
+
+export {
+  type Main as Record,
+  isMain as isRecord,
+  validateMain as validateRecord,
 }
