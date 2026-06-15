@@ -77,13 +77,7 @@ async function create(agent: Agent, db: Database, guildName: string) {
 	const guildCid = createGuildResult.cid;
 	const guildMemberUri = createGuildMemberClaimResult.uri;
 
-	const createdGuild: GuildRecord.Record = {
-		...guildRecord,
-		uri: guildUri,
-		cid: guildCid
-	};
-
-	console.log(`Successfully created AT guild: ${createdGuild.name}`);
+	console.log(`Successfully created AT guild: ${inputGuild.name}`);
 	await db.transaction().execute(async (trx) => {
 		await trx
 			.insertInto('guild')
@@ -112,7 +106,7 @@ async function create(agent: Agent, db: Database, guildName: string) {
 
 	console.log(`Successfully created local cache of guild`);
 
-	return createdGuild;
+	return createGuildResult;
 }
 
 async function GetClaimedGuildsFromPDS(guildUris: AtUri[], resolver: BidirectionalResolver) {
