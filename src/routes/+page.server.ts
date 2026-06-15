@@ -1,76 +1,25 @@
-import guildService from '$lib/server/guildService';
-import { getAgent } from '$lib/server/agent';
-import type { Actions, ServerLoad } from '@sveltejs/kit';
-import { error, redirect } from '@sveltejs/kit';
+import guildService, { BROWSE_PAGE_SIZE } from '$lib/server/guildService';
+import type { ServerLoad } from '@sveltejs/kit';
 
-export const load: ServerLoad = async ({ locals, cookies }) => {
-	const agent = await getAgent(cookies, locals.session, locals.oauthClient);
+export const load: ServerLoad = async ({ locals, url }) => {
+	const pageParam = parseInt(url.searchParams.get('page') ?? '1', 10);
+	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+	const offset = (page - 1) * BROWSE_PAGE_SIZE;
 
-	if (!agent) {
-		return {
-			profile: null
-		};
-	}
-
-	const response = await agent.getProfile({
-		actor: agent.assertDid
+	const { guilds, total } = await guildService.getAllGuilds(locals.db, {
+		limit: BROWSE_PAGE_SIZE,
+		offset
 	});
 
-	const handle = await locals.resolver.resolveDidToHandle(agent.assertDid);
-
-	const guilds = await guildService.getUserGuilds(agent.assertDid, locals.db);
-	const invites = await guildService.getUserInvites(handle, locals.db);
+	const leaderHandleMap = await locals.resolver.resolveDidsToHandles(
+		guilds.map((g) => g.leaderDid)
+	);
 
 	return {
-		profile: response.data,
 		guilds,
-		invites: invites
+		leaderHandleMap,
+		page,
+		total,
+		pageSize: BROWSE_PAGE_SIZE
 	};
 };
-
-export const actions = {
-	createGuild: async ({ request, locals, cookies }) => {
-		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
-		if (!agent) {
-			error(401, 'You must be logged in to create a new guild');
-		}
-
-		const data = await request.formData();
-		const guildName = data.get('guildName') as string;
-
-		const created = await guildService.create(agent, locals.db, guildName);
-
-		if (!created) {
-			error(500, 'Failed to create guild.');
-		}
-
-		throw redirect(303, `/guild/${created.uri.replace('at://', 'at/')}`);
-	},
-
-	acceptInvite: async ({ request, locals, cookies }) => {
-		const agent = await getAgent(cookies, locals.session, locals.oauthClient);
-		if (!agent) {
-			error(401, 'You must be logged in to accept an invite');
-		}
-
-		const data = await request.formData();
-		const inviteId = data.get('inviteId') as string;
-		const handle = await locals.resolver.resolveDidToHandle(agent.assertDid);
-
-		let guildUri = '';
-		try {
-			const result = await guildService.acceptInvite(parseInt(inviteId), handle, locals.db, agent);
-			if (!result) {
-				error(500, 'failed to accept invite');
-			}
-			guildUri = result.uri.replace('at://', 'at/');
-		} catch (err) {
-			console.error({ err }, 'accept invite failed');
-			return {
-				type: 'error',
-				error: (err as Error).message
-			};
-		}
-		throw redirect(303, `/guild/${guildUri}`);
-	}
-} satisfies Actions;

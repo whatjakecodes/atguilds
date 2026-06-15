@@ -40,3 +40,43 @@ export async function resetGuildRecords(
 		} while (cursor);
 	}
 }
+
+const GUILD_MEMBER_CLAIM_COLLECTION = 'dev.jakestout.atguilds.guildMemberClaim';
+
+/**
+ * Deletes the guildMemberClaim record on a user's PDS that points at `guildUri`.
+ * Simulates a member leaving a guild by removing their own claim, leaving the local
+ * Postgres cache (and the leader's guild.members array) stale until the next sync.
+ */
+export async function deleteGuildMemberClaim(
+	handle: string,
+	password: string,
+	guildUri: string,
+	service = process.env.PDS_SERVICE || 'https://bsky.social'
+): Promise<void> {
+	const agent = new AtpAgent({ service });
+	await agent.login({ identifier: handle, password });
+	const repo = agent.assertDid;
+
+	let cursor: string | undefined;
+	do {
+		const res = await agent.com.atproto.repo.listRecords({
+			repo,
+			collection: GUILD_MEMBER_CLAIM_COLLECTION,
+			cursor,
+			limit: 100
+		});
+		for (const record of res.data.records) {
+			const value = record.value as { guildUri?: string };
+			if (value?.guildUri === guildUri) {
+				const rkey = record.uri.split('/').at(-1)!;
+				await agent.com.atproto.repo.deleteRecord({
+					repo,
+					collection: GUILD_MEMBER_CLAIM_COLLECTION,
+					rkey
+				});
+			}
+		}
+		cursor = res.data.cursor;
+	} while (cursor);
+}

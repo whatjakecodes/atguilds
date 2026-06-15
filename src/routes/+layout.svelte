@@ -2,16 +2,15 @@
 	import Header from './Header.svelte';
 	import '../app.css';
 
-	let { children } = $props();
+	let { children, data } = $props();
 </script>
 
 <div class="app bg-blue-100 min-h-screen">
-	<Header />
+	<Header loggedIn={data.loggedIn} displayName={data.displayName} />
 
 	<main>
 		{@render children()}
 	</main>
 
-	<footer>
-	</footer>
+	<footer></footer>
 </div>
