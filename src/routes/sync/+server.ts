@@ -12,11 +12,10 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
 		});
 	}
 
-	await guildService.syncLocals(agent, locals.db, locals.resolver);
-	return new Response(JSON.stringify({ success: true }), {
+	const summary = await guildService.syncLocals(agent, locals.db, locals.resolver);
+	return new Response(JSON.stringify({ success: true, summary }), {
 		headers: {
 			'content-type': 'application/json'
 		}
 	});
-
 };

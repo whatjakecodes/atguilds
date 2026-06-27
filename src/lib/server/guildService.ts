@@ -6,6 +6,14 @@ import * as GuildMemberClaimRecord from '$lib/lexicon/types/dev/jakestout/atguil
 import { TID } from '@atproto/common';
 import type { Database, ExistingGuildInvite, Guild, GuildMember } from '$lib/server/db';
 import type { BidirectionalResolver } from '$lib/server/id-resolver';
+import type { SyncSummary } from '$lib/types';
+
+function emptySyncSummary(): SyncSummary {
+	return {
+		guilds: { created: [], deleted: [] },
+		guildMemberClaims: { created: [], deleted: [] }
+	};
+}
 
 async function create(agent: Agent, db: Database, guildName: string) {
 	const leaderDid = agent.assertDid;
@@ -253,8 +261,13 @@ async function GetMemberClaimsFromPDS(agent: Agent) {
 		.filter((record) => !!record);
 }
 
-async function syncLocals(agent: Agent | null, db: Database, resolver: BidirectionalResolver) {
-	if (!agent) return;
+async function syncLocals(
+	agent: Agent | null,
+	db: Database,
+	resolver: BidirectionalResolver
+): Promise<SyncSummary> {
+	const summary = emptySyncSummary();
+	if (!agent) return summary;
 	const userDid = agent.assertDid;
 	const indexedAt = new Date().toISOString();
 
@@ -310,6 +323,7 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 			}));
 			console.log({ guildsToInsert });
 			await trx.insertInto('guild').values(guildsToInsert).execute();
+			summary.guilds.created = guildsToInsert.map((g) => ({ uri: g.uri, name: g.name }));
 		}
 	});
 
@@ -324,6 +338,7 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 			}));
 			console.log({ membersToInsert });
 			await trx.insertInto('guild_member').values(membersToInsert).execute();
+			summary.guildMemberClaims.created = membersToInsert.map((m) => m.uri);
 		}
 	});
 
@@ -360,19 +375,27 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 			.execute();
 		console.log(`deleted ${staleDeleteResult.length} stale guild members during sync`);
 	}
+	summary.guildMemberClaims.deleted = staleMemberUris;
 
 	// delete cached guilds user is leader of, that are not in their PDS anymore. When the
 	// user leads no guilds on their PDS, every cached guild they lead is stale (and an empty
-	// `not in ()` is invalid SQL), so drop them all.
+	// `not in ()` is invalid SQL), so drop them all. Select the stale uris first so we can
+	// report exactly which guilds were removed in the summary.
 	const pdsGuildsUserLeads = await getGuildsByLeaderFromPDS(agent);
 	const guildsILeadURIs = pdsGuildsUserLeads.map((g) => g?.uri).filter((uri) => !!uri);
-	let leaderDeleteQuery = db.deleteFrom('guild').where('leaderDid', '=', userDid);
+	let staleLeaderGuildQuery = db.selectFrom('guild').select('uri').where('leaderDid', '=', userDid);
 	if (guildsILeadURIs.length > 0) {
-		leaderDeleteQuery = leaderDeleteQuery.where('uri', 'not in', guildsILeadURIs);
+		staleLeaderGuildQuery = staleLeaderGuildQuery.where('uri', 'not in', guildsILeadURIs);
 	}
-	const deleteResult = await leaderDeleteQuery.executeTakeFirst();
+	const deletedGuildUris = (await staleLeaderGuildQuery.execute()).map((g) => g.uri);
+	if (deletedGuildUris.length > 0) {
+		await db.deleteFrom('guild').where('uri', 'in', deletedGuildUris).execute();
+	}
+	summary.guilds.deleted = deletedGuildUris;
 
-	console.log(`deleted ${deleteResult.numDeletedRows} guilds during sync`);
+	console.log(`deleted ${deletedGuildUris.length} guilds during sync`);
+
+	return summary;
 }
 
 function getValidatedGuild(

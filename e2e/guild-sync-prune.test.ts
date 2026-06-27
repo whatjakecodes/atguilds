@@ -36,10 +36,17 @@ test.describe('sync prunes stale members', () => {
 		await leader.goto(guildPath);
 		await expect(leader.getByText(USER2_HANDLE, { exact: false })).toBeVisible();
 
-		// Click "Sync with PDS" on My Guilds; handleSyncClick fetches /sync then reloads.
+		// Click "Sync with PDS" on My Guilds; handleSyncClick fetches /sync, shows a summary of
+		// what changed, then refreshes the lists.
 		await leader.goto('/my-guilds');
 		await leader.getByRole('button', { name: 'Sync with PDS' }).click();
-		await leader.waitForLoadState('networkidle');
+
+		// The summary reports exactly one pruned member claim (USER2) and nothing else changed.
+		// Asserting it both covers the new /sync summary feature and deterministically signals the
+		// sync finished before we re-query the guild below.
+		await expect(leader.getByRole('status')).toHaveText(
+			/Synced — guilds: \+0 \/ −0 · member claims: \+0 \/ −1/
+		);
 
 		// Re-view the guild: USER2 has been pruned, USER1 (leader) remains.
 		await leader.goto(guildPath);

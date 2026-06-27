@@ -1,17 +1,37 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+	import type { SyncSummary } from '$lib/types';
+
 	const { data } = $props();
 
 	let syncing = $state(false);
+	let syncSummary = $state<SyncSummary | null>(null);
+	let syncError = $state(false);
+
+	const syncChanged = $derived(
+		!!syncSummary &&
+			syncSummary.guilds.created.length +
+				syncSummary.guilds.deleted.length +
+				syncSummary.guildMemberClaims.created.length +
+				syncSummary.guildMemberClaims.deleted.length >
+				0
+	);
 
 	async function handleSyncClick() {
 		syncing = true;
+		syncError = false;
+		syncSummary = null;
 		try {
-			await fetch('/sync');
-			// Reload to pick up the freshly-synced cache. The button stays in its loading
-			// state through the navigation, so we intentionally don't reset `syncing` here.
-			window.location.reload();
+			const res = await fetch('/sync');
+			const body = await res.json();
+			syncSummary = body.summary ?? null;
+			// Re-run the page load to refresh the guild lists reactively (no full reload, so the
+			// summary message survives).
+			await invalidateAll();
 		} catch (error) {
 			console.error('Error syncing data:', error);
+			syncError = true;
+		} finally {
 			syncing = false;
 		}
 	}
@@ -117,6 +137,20 @@
 					Sync with PDS
 				{/if}
 			</button>
+
+			{#if syncError}
+				<p class="text-sm text-red-600" role="alert">Sync failed. Please try again.</p>
+			{:else if syncSummary}
+				{#if syncChanged}
+					<p class="text-sm text-gray-600" role="status">
+						Synced — guilds: +{syncSummary.guilds.created.length} / −{syncSummary.guilds.deleted
+							.length} · member claims: +{syncSummary.guildMemberClaims.created.length} / −{syncSummary
+							.guildMemberClaims.deleted.length}
+					</p>
+				{:else}
+					<p class="text-sm text-gray-600" role="status">Already up to date.</p>
+				{/if}
+			{/if}
 		</div>
 
 		<!-- Right Column - Create Guild Form -->
