@@ -1,7 +1,11 @@
 <script lang="ts">
 	const { data } = $props();
-	const { guilds, leaderHandleMap, page, total, pageSize } = data;
-	const totalPages = Math.max(1, Math.ceil(total / pageSize));
+	const guilds = $derived(data.guilds);
+	const leaderHandleMap = $derived(data.leaderHandleMap);
+	const page = $derived(data.page);
+	const total = $derived(data.total);
+	const pageSize = $derived(data.pageSize);
+	const totalPages = $derived(Math.max(1, Math.ceil(total / pageSize)));
 </script>
 
 <svelte:head>

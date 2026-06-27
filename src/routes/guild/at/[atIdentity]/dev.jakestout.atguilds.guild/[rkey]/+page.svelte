@@ -1,7 +1,12 @@
 <script lang="ts">
 	const { data } = $props();
-	const { profile, guild, guildMembers, didHandleMap, didDisplayNameMap, invites } = data;
-	const isLeader = !!profile && guild.leaderDid === profile.did;
+	const profile = $derived(data.profile);
+	const guild = $derived(data.guild);
+	const guildMembers = $derived(data.guildMembers);
+	const didHandleMap = $derived(data.didHandleMap);
+	const didDisplayNameMap = $derived(data.didDisplayNameMap);
+	const invites = $derived(data.invites);
+	const isLeader = $derived(!!profile && guild.leaderDid === profile.did);
 
 	function isMember(did: string) {
 		return guild.leaderDid !== did;

@@ -10,12 +10,12 @@
 		}
 	}
 
-	const memberOfGuilds = data.guilds
-		? data.guilds.filter((guild) => guild.leaderDid !== data.profile.did)
-		: [];
-	const leaderOfGuilds = data.guilds
-		? data.guilds.filter((guild) => guild.leaderDid === data.profile.did)
-		: [];
+	const memberOfGuilds = $derived(
+		data.guilds ? data.guilds.filter((guild) => guild.leaderDid !== data.profile.did) : []
+	);
+	const leaderOfGuilds = $derived(
+		data.guilds ? data.guilds.filter((guild) => guild.leaderDid === data.profile.did) : []
+	);
 </script>
 
 <svelte:head>
