@@ -13,7 +13,7 @@ export function guildUrlToAtUri(url: string): string {
  * Runs the full create -> invite -> accept flow so a test starts from a guild that
  * USER1 leads with USER2 as an accepted member. Returns the guild's at:// URI.
  */
-export async function createGuildWithMember(
+export async function createGuildWithMembers(
 	browser: Browser,
 	user1: TestUser,
 	user2: TestUser,

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { deleteGuildMemberClaim, resetGuildRecords } from './helpers/atproto';
 import { loginViaOAuth } from './helpers/oauth';
-import { createGuildWithMember } from './helpers/flows';
+import { createGuildWithMembers } from './helpers/flows';
 import { USER1_HANDLE, USER1_PASSWORD, USER2_HANDLE, USER2_PASSWORD } from './helpers/env';
 
 test.describe('sync prunes stale members', () => {
@@ -12,7 +12,7 @@ test.describe('sync prunes stale members', () => {
 
 	test('USER2 deletes their claim; USER1 sync removes them from the cache', async ({ browser }) => {
 		const guildName = `E2E Sync ${Date.now()}`;
-		const { guildUri } = await createGuildWithMember(
+		const { guildUri } = await createGuildWithMembers(
 			browser,
 			{ handle: USER1_HANDLE, password: USER1_PASSWORD },
 			{ handle: USER2_HANDLE, password: USER2_PASSWORD },

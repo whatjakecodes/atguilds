@@ -29,7 +29,7 @@ test.describe('guild create -> invite -> accept', () => {
 		await resetGuildRecords(USER2_HANDLE, USER2_PASSWORD);
 	});
 
-	test('leader creates a guild, invites a member, member accepts, then it is publicly browsable', async ({
+	test('leader creates a guild, member accepts, leader removes the member and deletes the guild, and it disappears from Browse', async ({
 		browser
 	}) => {
 		// --- User 1 (leader): log in, create guild, invite user 2 ---
@@ -66,12 +66,10 @@ test.describe('guild create -> invite -> accept', () => {
 		await expect(member).toHaveURL(/\/guild\/at\//);
 		await expect(member.getByRole('heading', { name: guildName })).toBeVisible();
 
-		await leaderCtx.close();
-		await memberCtx.close();
-
 		// --- Public browsing: a logged-out visitor can find and view the guild ---
-		// A fresh context with no session is the clean equivalent of "logged out" and avoids
-		// the flakiness of revoking a live OAuth session mid-test.
+		// A fresh context with no session is the clean equivalent of "logged out"; it is logged
+		// out even while the leader/member contexts remain open. Done before the leader tears the
+		// guild down, while it still exists with both members.
 		const publicCtx = await browser.newContext();
 		const visitor = await publicCtx.newPage();
 
@@ -86,6 +84,28 @@ test.describe('guild create -> invite -> accept', () => {
 		await expect(visitor.getByText(USER2_HANDLE, { exact: false })).toBeVisible();
 		await expect(visitor.getByRole('button', { name: 'Invite Member' })).toHaveCount(0);
 
+		// --- Leader removes the joined member ---
+		// Reload so the leader's page picks up the member who joined after the page first rendered.
+		await leader.reload();
+		const removeButton = leader.getByRole('button', { name: 'Remove' });
+		await expect(removeButton).toHaveCount(1);
+		await removeButton.click();
+
+		// The member's Remove control (and the member) are gone from the leader's view.
+		await expect(leader.getByRole('button', { name: 'Remove' })).toHaveCount(0);
+		await expect(leader.getByText(USER2_HANDLE, { exact: false })).toHaveCount(0);
+
+		// --- Leader deletes the guild ---
+		await leader.getByRole('button', { name: 'Delete Guild' }).click();
+		// deleteGuild redirects to the personal dashboard.
+		await expect(leader).toHaveURL(/\/my-guilds/);
+
+		// --- Public browsing: the deleted guild no longer appears in Browse ---
+		const goneLink = await findGuildInBrowse(visitor, guildName);
+		expect(goneLink, 'deleted guild should no longer appear in the public Browse list').toBeNull();
+
+		await leaderCtx.close();
+		await memberCtx.close();
 		await publicCtx.close();
 	});
 });

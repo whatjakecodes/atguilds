@@ -25,5 +25,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.resolver = createBidirectionalResolver(baseIdResolver);
 	}
 
-	return await resolve(event);
+	return resolve(event);
 };
