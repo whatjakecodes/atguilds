@@ -16,6 +16,7 @@ export type DatabaseSchema = {
 	guild: Guild;
 	guild_member: GuildMember;
 	guild_invite: NewGuildInvite;
+	sync_log: SyncLog;
 };
 
 export type AuthSession = {
@@ -63,6 +64,11 @@ export type GuildMember = {
 	guildUri: string;
 	createdAt: string;
 	indexedAt: string;
+};
+
+export type SyncLog = {
+	did: string;
+	lastSyncedAt: string;
 };
 
 // Migrations
@@ -174,6 +180,19 @@ migrations['004'] = {
 	},
 	async down(db: Kysely<unknown>) {
 		await db.schema.alterTable('guild_invite').dropConstraint('fk_guild_invite_to_guild').execute();
+	}
+};
+
+migrations['005'] = {
+	async up(db: Kysely<unknown>) {
+		await db.schema
+			.createTable('sync_log')
+			.addColumn('did', 'varchar', (col) => col.primaryKey().notNull())
+			.addColumn('lastSyncedAt', 'varchar', (col) => col.notNull())
+			.execute();
+	},
+	async down(db: Kysely<unknown>) {
+		await db.schema.dropTable('sync_log').execute();
 	}
 };
 

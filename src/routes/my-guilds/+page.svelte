@@ -7,6 +7,7 @@
 	let syncing = $state(false);
 	let syncSummary = $state<SyncSummary | null>(null);
 	let syncError = $state(false);
+	let syncNotice = $state<string | null>(null);
 
 	const syncChanged = $derived(
 		!!syncSummary &&
@@ -21,9 +22,15 @@
 		syncing = true;
 		syncError = false;
 		syncSummary = null;
+		syncNotice = null;
 		try {
 			const res = await fetch('/sync');
 			const body = await res.json();
+			if (res.status === 429) {
+				const minutes = Math.ceil((body.retryAfterSeconds ?? 0) / 60);
+				syncNotice = `You synced recently — try again in ${minutes} minute(s).`;
+				return;
+			}
 			syncSummary = body.summary ?? null;
 			// Re-run the page load to refresh the guild lists reactively (no full reload, so the
 			// summary message survives).
@@ -140,6 +147,8 @@
 
 			{#if syncError}
 				<p class="text-sm text-red-600" role="alert">Sync failed. Please try again.</p>
+			{:else if syncNotice}
+				<p class="text-sm text-gray-600" role="status">{syncNotice}</p>
 			{:else if syncSummary}
 				{#if syncChanged}
 					<p class="text-sm text-gray-600" role="status">
