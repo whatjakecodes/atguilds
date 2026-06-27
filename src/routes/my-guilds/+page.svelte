@@ -1,12 +1,18 @@
 <script lang="ts">
 	const { data } = $props();
 
+	let syncing = $state(false);
+
 	async function handleSyncClick() {
+		syncing = true;
 		try {
 			await fetch('/sync');
+			// Reload to pick up the freshly-synced cache. The button stays in its loading
+			// state through the navigation, so we intentionally don't reset `syncing` here.
 			window.location.reload();
 		} catch (error) {
 			console.error('Error syncing data:', error);
+			syncing = false;
 		}
 	}
 
@@ -89,9 +95,27 @@
 
 			<button
 				onclick={handleSyncClick}
-				class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded"
+				disabled={syncing}
+				aria-busy={syncing}
+				title="Refresh this app's data from your ATProto PDS: re-fetches the guilds you lead and the memberships you've claimed, adding anything missing and removing entries that no longer exist on your PDS."
+				class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
 			>
-				Sync with PDS
+				{#if syncing}
+					<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+						<circle
+							class="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="4"
+						/>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+					</svg>
+					Syncing…
+				{:else}
+					Sync with PDS
+				{/if}
 			</button>
 		</div>
 
