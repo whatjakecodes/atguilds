@@ -1,5 +1,6 @@
 import { getAgent } from '$lib/server/agent';
 import guildService from '$lib/server/guildService';
+import { resolveDisplayNames } from '$lib/server/atproto/profiles';
 import type { Actions, ServerLoad } from '@sveltejs/kit';
 import { error, redirect } from '@sveltejs/kit';
 
@@ -10,37 +11,31 @@ export const load: ServerLoad = async ({ params, locals, cookies }) => {
 		error(400, 'Invalid path. Missing params.');
 	}
 
+	// Browsing is public: a logged-out visitor can view any cached guild. An authenticated
+	// agent is only needed for the leader-only controls below.
 	const agent = await getAgent(cookies, locals.session, locals.oauthClient);
-	if (!agent) {
-		error(401, 'Must be logged in');
-	}
 
-	const guild = await guildService.getGuild(atIdentity, rkey, locals.db);
-
+	const guild = await guildService.getGuild(atIdentity, rkey, locals.db).catch(() => null);
 	if (!guild) {
 		error(404, 'guild not found');
 	}
 
 	const guildMembers = await guildService.getGuildMembers(atIdentity, rkey, locals.db);
-	const invites = await guildService.getGuildInvites(guild.uri, locals.db);
-	const didHandleMap = await locals.resolver.resolveDidsToHandles(
-		guildMembers.map((m) => m.memberDid)
-	);
+	const memberDids = guildMembers.map((m) => m.memberDid);
+	const didHandleMap = await locals.resolver.resolveDidsToHandles(memberDids);
+	const didDisplayNameMap = await resolveDisplayNames(memberDids, { agent });
 
-	const didDisplayNameMap: { [key: string]: string } = {};
-	for (const member of guildMembers) {
-		const profile = await agent.getProfile({ actor: member.memberDid });
-		didDisplayNameMap[member.memberDid] = profile.data.displayName!;
-	}
+	const profile = agent ? (await agent.getProfile({ actor: agent.assertDid })).data : null;
+	const isLeader = !!profile && guild.leaderDid === profile.did;
 
-	const response = await agent.getProfile({
-		actor: agent.assertDid
-	});
+	// Pending invites expose invited handles, so only the leader sees them.
+	const invites = isLeader ? await guildService.getGuildInvites(guild.uri, locals.db) : [];
+
 	return {
 		guild,
 		guildMembers,
 		invites,
-		profile: response.data,
+		profile,
 		didHandleMap,
 		didDisplayNameMap
 	};
@@ -132,6 +127,6 @@ export const actions = {
 
 		await guildService.deleteGuild(params.atIdentity, params.rkey, locals.db, agent);
 
-		throw redirect(303, `/`);
+		throw redirect(303, `/my-guilds`);
 	}
 } satisfies Actions;

@@ -5,8 +5,10 @@ import { expect, type Page } from '@playwright/test';
  *   our /login form -> bsky.social sign-in + authorize pages -> back to our /oauth/callback.
  */
 export async function loginViaOAuth(page: Page, handle: string, password: string): Promise<void> {
-	// 1. Our app's login form
+	// 1. Browse home -> navbar "Log in" link -> dedicated /login form
 	await page.goto('/');
+	await page.getByRole('link', { name: /log in/i }).click();
+	await page.waitForURL('**/login');
 	await page.fill('#handle', handle);
 	await page.getByRole('button', { name: /log in/i }).click();
 

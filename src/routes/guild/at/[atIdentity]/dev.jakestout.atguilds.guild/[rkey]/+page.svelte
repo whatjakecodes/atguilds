@@ -1,10 +1,14 @@
 <script lang="ts">
 	const { data } = $props();
 	const { profile, guild, guildMembers, didHandleMap, didDisplayNameMap, invites } = data;
-	const isLeader = guild.leaderDid === profile.did;
+	const isLeader = !!profile && guild.leaderDid === profile.did;
 
 	function isMember(did: string) {
 		return guild.leaderDid !== did;
+	}
+
+	function displayName(did: string) {
+		return didDisplayNameMap[did] ?? didHandleMap[did];
 	}
 </script>
 
@@ -14,9 +18,11 @@
 </svelte:head>
 
 <div class="container mx-auto px-4 py-8">
-	<a href="/"
-		 class="mb-1 no-underline block w-fit text-sm text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-sm"
-	>{'<'} Back</a>
+	<a
+		href="/"
+		class="mb-1 no-underline block w-fit text-sm text-blue-600 hover:text-blue-800 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-sm"
+		>{'<'} Back</a
+	>
 	<h1 class="text-3xl font-bold text-gray-900 mb-7">{guild.name}</h1>
 
 	<div class="flex flex-col md:flex-row gap-8">
@@ -25,19 +31,27 @@
 			<div class="bg-white rounded-lg shadow-lg p-6">
 				<div class="mb-6">
 					<h2 class="text-xl font-semibold mb-2">Leader</h2>
-					<p class="text-gray-700">{didDisplayNameMap[guild.leaderDid]} (<a
-						href="https://bsky.app/profile/{didHandleMap[guild.leaderDid]}" target="_blank"
-						rel="noopener noreferrer">{didHandleMap[guild.leaderDid]}</a>)</p>
+					<p class="text-gray-700">
+						{displayName(guild.leaderDid)} (<a
+							href="https://bsky.app/profile/{didHandleMap[guild.leaderDid]}"
+							target="_blank"
+							rel="noopener noreferrer">{didHandleMap[guild.leaderDid]}</a
+						>)
+					</p>
 				</div>
 
 				<div class="mb-6">
 					<h2 class="text-xl font-semibold mb-4">Members</h2>
 					<ul class="space-y-3">
-						{#each guildMembers.filter(m => m.memberDid !== guild.leaderDid) as member}
+						{#each guildMembers.filter((m) => m.memberDid !== guild.leaderDid) as member}
 							<li class="flex items-center justify-between">
-								<span class="text-gray-700">{didDisplayNameMap[member.memberDid]} (<a
-									href="https://bsky.app/profile/{didHandleMap[member.memberDid]}" target="_blank"
-									rel="noopener noreferrer">{didHandleMap[member.memberDid]}</a>)</span>
+								<span class="text-gray-700"
+									>{displayName(member.memberDid)} (<a
+										href="https://bsky.app/profile/{didHandleMap[member.memberDid]}"
+										target="_blank"
+										rel="noopener noreferrer">{didHandleMap[member.memberDid]}</a
+									>)</span
+								>
 								{#if isLeader && isMember(member.memberDid)}
 									<form method="POST" action="?/removeMember" class="inline">
 										<input type="hidden" id="memberDid" name="memberDid" value={member.memberDid} />

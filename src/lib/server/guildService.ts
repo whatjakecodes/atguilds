@@ -327,13 +327,50 @@ async function syncLocals(agent: Agent | null, db: Database, resolver: Bidirecti
 		}
 	});
 
-	// delete cached guilds user is leader of, that are not in their PDS anymore
+	// prune stale members: a guild_member is valid only if its claim still exists on the
+	// member's PDS AND the member is still in the guild record's `members` array
+	// (bi-directional validity). pdsOtherMembers holds the claims that currently exist for
+	// the user's guilds, so any cached member missing from that set is stale.
+	// NOTE: GetOtherMemberClaimsFromPDS / GetClaimedGuildsFromPDS swallow per-PDS fetch
+	// errors, so a transient failure could momentarily treat a valid member as stale. We
+	// scope pruning to guilds we successfully fetched (fetchedGuildUris) to limit the blast
+	// radius if a leader's PDS is unreachable.
+	const fetchedGuildUris = new Set<string>(pdsGuilds.map((record) => record.uri));
+	const validMemberClaimUris = new Set<string>(
+		pdsOtherMembers
+			.filter((record) => {
+				const memberDid = record.uri.hostname;
+				return pdsGuilds.some(
+					(guildRecord) =>
+						guildRecord.uri === record.guildMemberClaim.guildUri &&
+						guildRecord.guild.members.includes(memberDid)
+				);
+			})
+			.map((record) => record.uri.toString())
+	);
+
+	const staleMemberUris = dbMembers
+		.filter((dbM) => fetchedGuildUris.has(dbM.guildUri) && !validMemberClaimUris.has(dbM.uri))
+		.map((dbM) => dbM.uri);
+
+	if (staleMemberUris.length > 0) {
+		const staleDeleteResult = await db
+			.deleteFrom('guild_member')
+			.where('uri', 'in', staleMemberUris)
+			.execute();
+		console.log(`deleted ${staleDeleteResult.length} stale guild members during sync`);
+	}
+
+	// delete cached guilds user is leader of, that are not in their PDS anymore. When the
+	// user leads no guilds on their PDS, every cached guild they lead is stale (and an empty
+	// `not in ()` is invalid SQL), so drop them all.
 	const pdsGuildsUserLeads = await getGuildsByLeaderFromPDS(agent);
 	const guildsILeadURIs = pdsGuildsUserLeads.map((g) => g?.uri).filter((uri) => !!uri);
-	const deleteResult = await db
-		.deleteFrom('guild')
-		.where((eb) => eb.and([eb('leaderDid', '=', userDid), eb('uri', 'not in', guildsILeadURIs)]))
-		.executeTakeFirst();
+	let leaderDeleteQuery = db.deleteFrom('guild').where('leaderDid', '=', userDid);
+	if (guildsILeadURIs.length > 0) {
+		leaderDeleteQuery = leaderDeleteQuery.where('uri', 'not in', guildsILeadURIs);
+	}
+	const deleteResult = await leaderDeleteQuery.executeTakeFirst();
 
 	console.log(`deleted ${deleteResult.numDeletedRows} guilds during sync`);
 }
@@ -369,8 +406,54 @@ function getValidatedGuildMemberClaim(
 }
 
 async function getExistingGuilds(pdsGuildURIs: AtUri[], db: Database): Promise<Guild[]> {
+	if (pdsGuildURIs.length === 0) return [];
 	const uriStrings = pdsGuildURIs.map((uri) => uri.toString());
 	return await db.selectFrom('guild').where('uri', 'in', uriStrings).selectAll().execute();
+}
+
+export const BROWSE_PAGE_SIZE = 10;
+
+export type GuildWithMemberCount = Guild & { memberCount: number };
+
+/** A page of all guilds (newest-agnostic, ordered by name) with member counts. */
+async function getAllGuilds(
+	db: Database,
+	{ limit, offset }: { limit: number; offset: number }
+): Promise<{ guilds: GuildWithMemberCount[]; total: number }> {
+	const rows = await db
+		.selectFrom('guild')
+		.leftJoin('guild_member', 'guild_member.guildUri', 'guild.uri')
+		.select((eb) => [
+			'guild.uri as uri',
+			'guild.cid as cid',
+			'guild.creatorDid as creatorDid',
+			'guild.name as name',
+			'guild.leaderDid as leaderDid',
+			'guild.createdAt as createdAt',
+			'guild.indexedAt as indexedAt',
+			eb.fn.count('guild_member.uri').as('memberCount')
+		])
+		.groupBy([
+			'guild.uri',
+			'guild.cid',
+			'guild.creatorDid',
+			'guild.name',
+			'guild.leaderDid',
+			'guild.createdAt',
+			'guild.indexedAt'
+		])
+		.orderBy('guild.name')
+		.limit(limit)
+		.offset(offset)
+		.execute();
+
+	const totalRow = await db
+		.selectFrom('guild')
+		.select((eb) => eb.fn.countAll().as('total'))
+		.executeTakeFirst();
+
+	const guilds = rows.map((row) => ({ ...row, memberCount: Number(row.memberCount) }));
+	return { guilds, total: Number(totalRow?.total ?? 0) };
 }
 
 async function getUserGuilds(userDid: string, db: Database): Promise<Guild[]> {
@@ -386,6 +469,7 @@ async function getUserGuilds(userDid: string, db: Database): Promise<Guild[]> {
 }
 
 async function getExistingGuildMembers(guildURIs: AtUri[], db: Database): Promise<GuildMember[]> {
+	if (guildURIs.length === 0) return [];
 	return await db
 		.selectFrom('guild_member')
 		.where(
@@ -768,6 +852,7 @@ const guildService = {
 	getGuildInvites,
 	getGuildMembers,
 	getUserGuilds,
+	getAllGuilds,
 	syncLocals,
 	inviteHandle: inviteMember,
 	getUserInvites,
