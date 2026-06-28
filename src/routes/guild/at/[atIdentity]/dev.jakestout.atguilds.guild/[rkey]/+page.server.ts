@@ -1,6 +1,7 @@
 import { getAgent } from '$lib/server/agent';
 import guildService from '$lib/server/guildService';
 import { resolveDisplayNames } from '$lib/server/atproto/profiles';
+import { laterOfIso } from '$lib/dateUtils';
 import type { Actions, ServerLoad } from '@sveltejs/kit';
 import { error, redirect } from '@sveltejs/kit';
 
@@ -20,7 +21,14 @@ export const load: ServerLoad = async ({ params, locals, cookies }) => {
 		error(404, 'guild not found');
 	}
 
-	const guildMembers = await guildService.getGuildMembers(atIdentity, rkey, locals.db);
+	const rawMembers = await guildService.getGuildMembers(atIdentity, rkey, locals.db);
+	// memberSince = the point bi-directional membership became valid: the later of when the member's
+	// claim was created and when they were added to the guild (addedAt). addedAt may be null for rows
+	// not yet reconciled by a sync; fall back to the claim date in that case.
+	const guildMembers = rawMembers.map((m) => ({
+		...m,
+		memberSince: m.addedAt ? laterOfIso(m.createdAt, m.addedAt) : m.createdAt
+	}));
 	const memberDids = guildMembers.map((m) => m.memberDid);
 	const didHandleMap = await locals.resolver.resolveDidsToHandles(memberDids);
 	const didDisplayNameMap = await resolveDisplayNames(memberDids, { agent });

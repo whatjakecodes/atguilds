@@ -35,17 +35,33 @@ export const schemaDict = {
             },
             members: {
               type: 'array',
-              description: 'Array of member DIDs',
+              description: 'Array of guild members',
               items: {
-                type: 'string',
-                description: 'DID for each member in the guild',
-                format: 'at-identifier',
+                type: 'ref',
+                ref: 'lex:dev.jakestout.atguilds.guild#member',
               },
             },
             createdAt: {
               type: 'string',
               format: 'datetime',
             },
+          },
+        },
+      },
+      member: {
+        type: 'object',
+        description: 'A member of the guild and when they were added',
+        required: ['did', 'addedAt'],
+        properties: {
+          did: {
+            type: 'string',
+            description: 'DID for the member',
+            format: 'at-identifier',
+          },
+          addedAt: {
+            type: 'string',
+            description: 'When the member was added to the guild',
+            format: 'datetime',
           },
         },
       },

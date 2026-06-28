@@ -41,6 +41,60 @@ export async function resetGuildRecords(
 	}
 }
 
+const GUILD_COLLECTION = 'dev.jakestout.atguilds.guild';
+
+/**
+ * Creates a guild record on the leader's PDS in the LEGACY shape: `members` is an array of
+ * plain DID strings with no per-member `addedAt`. PDSes don't validate custom lexicons, so the
+ * old shape is accepted as-is. Used to set up the "needs upgrade" precondition for the auto-upgrade
+ * that runs in syncLocals when the leader next logs in. Returns the guild's at:// URI and the
+ * `createdAt` it was given (the expected `addedAt` fallback after upgrade).
+ */
+export async function createLegacyGuild(
+	handle: string,
+	password: string,
+	guildName: string,
+	extraMemberDids: string[] = [],
+	service = process.env.PDS_SERVICE || 'https://bsky.social'
+): Promise<{ guildUri: string; createdAt: string }> {
+	const agent = new AtpAgent({ service });
+	await agent.login({ identifier: handle, password });
+	const repo = agent.assertDid;
+	const createdAt = new Date().toISOString();
+
+	const res = await agent.com.atproto.repo.createRecord({
+		repo,
+		collection: GUILD_COLLECTION,
+		record: {
+			$type: GUILD_COLLECTION,
+			name: guildName,
+			leader: repo,
+			members: [repo, ...extraMemberDids], // legacy shape: bare DID strings, no addedAt
+			createdAt
+		}
+	});
+
+	return { guildUri: res.data.uri, createdAt };
+}
+
+/** Fetches a guild record from the leader's PDS and returns its raw `value` for inspection. */
+export async function getPdsGuildValue(
+	handle: string,
+	password: string,
+	guildUri: string,
+	service = process.env.PDS_SERVICE || 'https://bsky.social'
+): Promise<Record<string, unknown>> {
+	const agent = new AtpAgent({ service });
+	await agent.login({ identifier: handle, password });
+	const rkey = guildUri.split('/').at(-1)!;
+	const res = await agent.com.atproto.repo.getRecord({
+		repo: agent.assertDid,
+		collection: GUILD_COLLECTION,
+		rkey
+	});
+	return res.data.value as Record<string, unknown>;
+}
+
 const GUILD_MEMBER_CLAIM_COLLECTION = 'dev.jakestout.atguilds.guildMemberClaim';
 
 /**
