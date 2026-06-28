@@ -64,6 +64,7 @@ export type GuildMember = {
 	guildUri: string;
 	createdAt: string;
 	indexedAt: string;
+	addedAt: string | null;
 };
 
 export type SyncLog = {
@@ -193,6 +194,21 @@ migrations['005'] = {
 	},
 	async down(db: Kysely<unknown>) {
 		await db.schema.dropTable('sync_log').execute();
+	}
+};
+
+migrations['006'] = {
+	async up(db: Kysely<DatabaseSchema>) {
+		await db.schema.alterTable('guild_member').addColumn('addedAt', 'varchar').execute();
+		// backfill existing rows: treat the cached claim date as the added date until a sync
+		// populates the real addedAt from the guild record.
+		await db
+			.updateTable('guild_member')
+			.set((eb) => ({ addedAt: eb.ref('createdAt') }))
+			.execute();
+	},
+	async down(db: Kysely<unknown>) {
+		await db.schema.alterTable('guild_member').dropColumn('addedAt').execute();
 	}
 };
 

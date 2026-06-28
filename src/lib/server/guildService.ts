@@ -17,12 +17,13 @@ function emptySyncSummary(): SyncSummary {
 
 async function create(agent: Agent, db: Database, guildName: string) {
 	const leaderDid = agent.assertDid;
+	const createdAt = new Date().toISOString();
 	const inputGuild: GuildRecord.Record = {
 		$type: ids.DevJakestoutAtguildsGuild,
 		name: guildName,
 		leader: leaderDid,
-		members: [leaderDid],
-		createdAt: new Date().toISOString()
+		members: [{ did: leaderDid, addedAt: createdAt }],
+		createdAt
 	};
 
 	const guild = GuildRecord.validateRecord(inputGuild);
@@ -107,7 +108,8 @@ async function create(agent: Agent, db: Database, guildName: string) {
 				memberDid: leaderDid,
 				guildUri: guildUri,
 				createdAt: inputGuild.createdAt,
-				indexedAt: inputGuild.createdAt
+				indexedAt: inputGuild.createdAt,
+				addedAt: createdAt
 			})
 			.execute();
 	});
@@ -169,23 +171,37 @@ async function getGuildsByLeaderFromPDS(agent: Agent) {
 		throw Error('failed to fetch guilds user is leader of');
 	}
 
-	return response.data.records
-		.map((record) => {
-			const validatedGuild = getValidatedGuild(record);
-
-			if (!validatedGuild) {
-				return null;
+	const results = [];
+	for (const record of response.data.records) {
+		// One-time upgrade: rewrite legacy records (bare-DID members) on the leader's own PDS
+		// into the current { did, addedAt } shape. Best-effort — a failed write must not break sync.
+		if (isLegacyGuildMembers(record.value)) {
+			try {
+				const upgraded = coerceLegacyGuild(record.value as Record<string, unknown>);
+				await agent.com.atproto.repo.putRecord({
+					repo: agent.assertDid,
+					collection: ids.DevJakestoutAtguildsGuild,
+					rkey: new AtUri(record.uri).rkey,
+					record: upgraded
+				});
+				record.value = upgraded;
+				console.log(`upgraded legacy guild record ${record.uri}`);
+			} catch (err) {
+				console.error(`failed to upgrade legacy guild record ${record.uri}`, { err });
 			}
+		}
 
-			console.log(`got PDS guild by leader: ${validatedGuild.name}`);
+		const validatedGuild = getValidatedGuild(record);
+		if (!validatedGuild) continue;
 
-			return {
-				cid: record.cid,
-				uri: record.uri,
-				guild: validatedGuild as GuildRecord.Record
-			};
-		})
-		.filter((record) => !!record);
+		console.log(`got PDS guild by leader: ${validatedGuild.name}`);
+		results.push({
+			cid: record.cid,
+			uri: record.uri,
+			guild: validatedGuild as GuildRecord.Record
+		});
+	}
+	return results;
 }
 
 async function GetOtherMemberClaimsFromPDS(
@@ -280,7 +296,7 @@ async function syncLocals(
 
 	// fetch actual guild objects from leader PDSes
 	const pdsGuilds = await GetClaimedGuildsFromPDS(guildUris, resolver);
-	const guildMemberDIDs = pdsGuilds.flatMap((record) => record.guild.members);
+	const guildMemberDIDs = pdsGuilds.flatMap((record) => record.guild.members.map((m) => m.did));
 
 	// fetch other guild members from PDSes
 	const pdsOtherMembers = await GetOtherMemberClaimsFromPDS(guildMemberDIDs, guildUris, resolver);
@@ -303,7 +319,7 @@ async function syncLocals(
 			const isInGuild = pdsGuilds.find(
 				(guildRecord) =>
 					guildRecord.uri === record.guildMemberClaim.guildUri &&
-					guildRecord.guild.members.includes(memberDid)
+					guildRecord.guild.members.some((m) => m.did === memberDid)
 			);
 			const existingLocal = dbMembers.find((dbM) => dbM.uri === record.uri.toString());
 			return !existingLocal && isInGuild;
@@ -329,13 +345,19 @@ async function syncLocals(
 
 	await db.transaction().execute(async (trx) => {
 		if (guildMembersToAdd.length > 0) {
-			const membersToInsert = guildMembersToAdd.map((record) => ({
-				uri: record.uri.toString(),
-				guildUri: record.guildMemberClaim.guildUri,
-				memberDid: record.uri.hostname,
-				createdAt: record.guildMemberClaim.createdAt,
-				indexedAt: indexedAt
-			}));
+			const membersToInsert = guildMembersToAdd.map((record) => {
+				const memberDid = record.uri.hostname;
+				const guildRec = pdsGuilds.find((g) => g.uri === record.guildMemberClaim.guildUri);
+				const addedAt = guildRec?.guild.members.find((m) => m.did === memberDid)?.addedAt ?? null;
+				return {
+					uri: record.uri.toString(),
+					guildUri: record.guildMemberClaim.guildUri,
+					memberDid,
+					createdAt: record.guildMemberClaim.createdAt,
+					indexedAt: indexedAt,
+					addedAt
+				};
+			});
 			console.log({ membersToInsert });
 			await trx.insertInto('guild_member').values(membersToInsert).execute();
 			summary.guildMemberClaims.created = membersToInsert.map((m) => m.uri);
@@ -358,7 +380,7 @@ async function syncLocals(
 				return pdsGuilds.some(
 					(guildRecord) =>
 						guildRecord.uri === record.guildMemberClaim.guildUri &&
-						guildRecord.guild.members.includes(memberDid)
+						guildRecord.guild.members.some((m) => m.did === memberDid)
 				);
 			})
 			.map((record) => record.uri.toString())
@@ -398,12 +420,35 @@ async function syncLocals(
 	return summary;
 }
 
+// A pre-`addedAt` guild record stores `members` as an array of bare DID strings. Detect that
+// shape so we can upgrade it to the current `{ did, addedAt }` form.
+function isLegacyGuildMembers(value: unknown): value is { members: string[]; createdAt: string } {
+	if (typeof value !== 'object' || value === null) return false;
+	const members = (value as { members?: unknown }).members;
+	return (
+		Array.isArray(members) && members.length > 0 && members.every((m) => typeof m === 'string')
+	);
+}
+
+// Upgrade a legacy guild record's `members` (bare DIDs) to `{ did, addedAt }`, defaulting each
+// member's addedAt to the guild's createdAt (best available date for previously-undated members).
+function coerceLegacyGuild(value: Record<string, unknown>): Record<string, unknown> {
+	const members = (value.members as string[]).map((did) => ({
+		did,
+		addedAt: value.createdAt as string
+	}));
+	return { ...value, members };
+}
+
 function getValidatedGuild(
 	record: ComAtprotoRepoGetRecord.OutputSchema
 ): GuildRecord.Record | null {
-	const isGuild = GuildRecord.isRecord(record.value);
+	const value = isLegacyGuildMembers(record.value)
+		? coerceLegacyGuild(record.value as Record<string, unknown>)
+		: record.value;
+	const isGuild = GuildRecord.isRecord(value);
 	if (!isGuild) return null;
-	const validation = GuildRecord.validateRecord(record.value);
+	const validation = GuildRecord.validateRecord(value);
 	if (validation.success) {
 		return validation.value as GuildRecord.Record;
 	} else {
@@ -564,7 +609,8 @@ async function inviteMember(
 	const guildAtUri = new AtUri(guildUri);
 	const validatedGuild = await getPdsGuild(guildAtUri, agent);
 
-	validatedGuild.members.push(inviteeDid);
+	const addedAt = new Date().toISOString();
+	validatedGuild.members.push({ did: inviteeDid, addedAt });
 
 	// update existing guild record members array
 	const response = await agent.com.atproto.repo.putRecord({
@@ -594,15 +640,16 @@ async function inviteMember(
 
 		if (existingClaim) {
 			// no need to invite; member has MemberClaim to the guild already
-			const guildUri = getValidatedGuildMemberClaim(existingClaim)!.guildUri;
+			const validatedClaim = getValidatedGuildMemberClaim(existingClaim)!;
 			await db
 				.insertInto('guild_member')
 				.values({
 					uri: existingClaim.uri,
 					memberDid: inviteeDid,
-					guildUri,
-					createdAt: new Date().toISOString(),
-					indexedAt: new Date().toISOString()
+					guildUri: validatedClaim.guildUri,
+					createdAt: validatedClaim.createdAt,
+					indexedAt: new Date().toISOString(),
+					addedAt
 				})
 				.execute();
 
@@ -745,8 +792,10 @@ async function acceptInvite(inviteId: number, handle: string, db: Database, agen
 			uri: guildMemberUri,
 			memberDid: agent.assertDid,
 			guildUri: guild.uri,
-			createdAt: new Date().toISOString(),
-			indexedAt: new Date().toISOString()
+			createdAt: inputGuildMemberClaim.createdAt,
+			indexedAt: new Date().toISOString(),
+			// sync backfills the real added date from the leader's guild record shortly after.
+			addedAt: null
 		})
 		.execute();
 
@@ -778,7 +827,7 @@ async function removeMember(
 	const guild = await getPdsGuild(guildAtUri, agent);
 
 	// remove member
-	guild.members = guild.members.filter((member) => member !== memberDid);
+	guild.members = guild.members.filter((member) => member.did !== memberDid);
 
 	// update existing guild record members array
 	const response = await agent.com.atproto.repo.putRecord({
